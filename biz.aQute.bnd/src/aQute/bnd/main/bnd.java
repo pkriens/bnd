@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,7 +30,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.Formatter;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
@@ -46,6 +46,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
 import java.util.jar.JarInputStream;
@@ -87,12 +88,12 @@ import aQute.bnd.main.BaselineCommands.baseLineOptions;
 import aQute.bnd.main.BaselineCommands.schemaOptions;
 import aQute.bnd.main.DiffCommand.diffOptions;
 import aQute.bnd.main.RepoCommand.repoOptions;
+import aQute.bnd.main.XRefCommand.xrefOptions;
 import aQute.bnd.maven.MavenCommand;
 import aQute.bnd.maven.PomFromManifest;
 import aQute.bnd.osgi.About;
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Builder;
-import aQute.bnd.osgi.Clazz;
 import aQute.bnd.osgi.Clazz.Def;
 import aQute.bnd.osgi.Constants;
 import aQute.bnd.osgi.Descriptors.PackageRef;
@@ -150,21 +151,20 @@ import aQute.service.reporter.Reporter;
  * Utility to make bundles. @version $Revision: 1.14 $
  */
 public class bnd extends Processor {
-	private static Logger						logger					= LoggerFactory.getLogger(bnd.class);
-	static Pattern								ASSIGNMENT				= Pattern.compile(															//
-		"([^=]+) (= ( ?: (\"|'|) (.+) \\3 )? ) ?", Pattern.COMMENTS);
+	private final static Logger					logger					= LoggerFactory.getLogger(bnd.class);
+	static Pattern								ASSIGNMENT				= Pattern.compile(																//
+			"([^=]+) (= ( ?: (\"|'|) (.+) \\3 )? ) ?", Pattern.COMMENTS);
 	Settings									settings				= new Settings();
 	final PrintStream							err						= System.err;
 	final public PrintStream					out						= System.out;
 	Justif										justif					= new Justif(80, 40, 42, 70);
 	BndMessages									messages				= ReporterMessages.base(this,
-		BndMessages.class);
+			BndMessages.class);
 	private Workspace							ws;
 	private char[]								password;
 	private Workspace							workspace;
 
 	private static final ThreadLocal<Boolean>	noExit					= new ThreadLocal<Boolean>() {
-																			@Override
 																			protected Boolean initialValue() {
 																				return false;
 																			};
@@ -172,7 +172,7 @@ public class bnd extends Processor {
 	private static final String					DEFAULT_LOG_LEVEL_KEY	= "org.slf4j.simpleLogger.defaultLogLevel";
 
 	static Pattern								JARCOMMANDS				= Pattern
-		.compile("(cv?0?(m|M)?f?)|(uv?0?M?f?)|(xv?f?)|(tv?f?)|(i)");
+			.compile("(cv?0?(m|M)?f?)|(uv?0?M?f?)|(xv?f?)|(tv?f?)|(i)");
 
 	static Pattern								COMMAND					= Pattern.compile("\\w[\\w\\d]+");
 	static Pattern								EMAIL_P					= Pattern.compile(
@@ -1415,116 +1415,11 @@ public class bnd extends Processor {
 		}
 	}
 
-	@Description("Show a cross references for all classes in a set of jars.")
-	@Arguments(arg = {
-		"<jar path>", "[...]"
-	})
-	interface xrefOptions extends Options {
-		@Description("Show classes instead of packages")
-		boolean classes();
-
-		@Description("Show references to other classes/packages (>)")
-		boolean to();
-
-		@Description("Show references from other classes/packages (<)")
-		boolean from();
-
-		@Description("Filter for class names, a globbing expression")
-		List<String> match();
-
-	}
-
-	static public class All {
-		public Map<TypeRef, List<TypeRef>>			classes		= new HashMap<>();
-		public Map<PackageRef, List<PackageRef>>	packages	= new HashMap<>();
-	}
-
-	/**
-	 * Cross reference every class in the jar file to the files it references
 	 */
 	@Description("Show a cross references for all classes in a set of jars.")
 	public void _xref(xrefOptions options) throws IOException, Exception {
-		Analyzer analyzer = new Analyzer();
-		final MultiMap<TypeRef, TypeRef> table = new MultiMap<>();
-		final MultiMap<PackageRef, PackageRef> packages = new MultiMap<>();
-		Set<TypeRef> set = Create.set();
-		Instructions filter = new Instructions(options.match());
-		for (String arg : options._arguments()) {
-			try {
-				File file = new File(arg);
-				try (Jar jar = new Jar(file.getName(), file)) {
-					for (Map.Entry<String, Resource> entry : jar.getResources()
-						.entrySet()) {
-						String key = entry.getKey();
-						Resource r = entry.getValue();
-						if (key.endsWith(".class")) {
-							TypeRef ref = analyzer.getTypeRefFromPath(key);
-							if (filter.matches(ref.toString())) {
-								set.add(ref);
-
-								try (InputStream in = r.openInputStream()) {
-									Clazz clazz = new Clazz(analyzer, key, r);
-
-									// TODO use the proper bcp instead
-									// of using the default layout
-									Set<TypeRef> s = clazz.parseClassFile();
-									for (Iterator<TypeRef> t = s.iterator(); t.hasNext();) {
-										TypeRef tr = t.next();
-										if (tr.isJava() || tr.isPrimitive())
-											t.remove();
-										else
-											packages.add(ref.getPackageRef(), tr.getPackageRef());
-									}
-									table.addAll(ref, s);
-									set.addAll(s);
-								}
-							}
-						}
-					}
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-		}
-
-		boolean to = options.to();
-		boolean from = options.from();
-		if (to == false && from == false)
-			to = from = true;
-
-		if (options.classes()) {
-			if (to)
-				printxref(table, ">");
-			if (from)
-				printxref(table.transpose(), "<");
-		} else {
-			if (to)
-				printxref(packages, ">");
-			if (from)
-				printxref(packages.transpose(), "<");
-		}
-	}
-
-	private void printxref(MultiMap<?, ?> map, String direction) {
-		SortedList<?> labels = new SortedList<Object>(map.keySet(), null);
-		for (Object element : labels) {
-			List<?> e = map.get(element);
-			if (e == null) {
-				// ignore
-			} else {
-				Set<Object> set = new LinkedHashSet<>(e);
-				set.remove(element);
-				Iterator<?> row = set.iterator();
-				String first = "";
-				if (row.hasNext())
-					first = row.next()
-						.toString();
-				out.printf("%50s %s %s\n", element, direction, first);
-				while (row.hasNext()) {
-					out.printf("%50s   %s\n", "", row.next());
-				}
-			}
-		}
+		XRefCommand cx = new XRefCommand(this);
+		cx.xref(options);
 	}
 
 	@Description("Show info about the current directory's eclipse project")
@@ -4547,6 +4442,139 @@ public class bnd extends Processor {
 		output.setManifest(manifest);
 		output.stripSignatures();
 		output.write(destination);
+	}
+
+	@Description("Extract a set of classes/packages from a set of JARs")
+	interface CollectOptions extends Options {
+		@Description("A file with a list of class names to extract. Can be -- when the names are piped into this command")
+		String classes();
+
+	}
+
+	@Description("Extract a set of resources from a set of JARs given a set of prefixes. "
+			+ "All prefixes in any of the given input jars are added to the output jar")
+	@Arguments(arg = {
+			"<out path>", "<in path>", "[...]"
+	})
+	public void _collect(CollectOptions options) throws Exception {
+		List<Jar> opened = new ArrayList<>();
+
+		List<String> args = options._arguments();
+		String outpath = args.remove(0);
+
+		File outfile = getFile(outpath);
+		outfile.getParentFile().mkdirs();
+		bnd.logger.debug("out %s", outfile);
+
+		String classes = options.classes();
+		if (classes == null) {
+			classes = "--";
+		}
+
+		Jar store = new Jar("store");
+		opened.add(store);
+
+		for (String arg : args) {
+			try {
+				bnd.logger.debug("storing %s", arg);
+				File file = getFile(arg);
+				if (!file.isFile()) {
+					error("Cannot open file %s", file);
+					continue;
+				}
+				Jar jar = new Jar(file.getName(), file);
+				store.addAll(jar);
+				opened.add(jar);
+			} catch (Exception e) {
+				exception(e, "File %s", arg);
+			}
+		}
+
+		Jar out = new Jar("out");
+		opened.add(out);
+		forEachLine(classes, line -> {
+			String path = line.trim();
+			if (path.isEmpty() || path.startsWith("#"))
+				return;
+
+			bnd.logger.info("line {}", path);
+			boolean match = false;
+			for (Map.Entry<String,Resource> e : store.getResources().entrySet()) {
+				if (e.getKey().startsWith(path)) {
+					match = true;
+					bnd.logger.info("# found %s", path);
+					out.putResource(e.getKey(), e.getValue());
+				}
+			}
+			if (!match) {
+				this.error("Not found %s", path);
+			}
+		});
+		out.write(outfile);
+		opened.forEach(IO::close);
+
+	}
+
+	@Description("Convert class names to resource paths from stdin to stdout")
+	@Arguments(arg = {})
+	public void _classtoresource(Options options) throws IOException {
+		try (Analyzer a = new Analyzer()) {
+			List<String> l = options._arguments().isEmpty() ? Arrays.asList("--") : options._arguments();
+
+			for (String f : l) {
+				forEachLine(f, s -> {
+					String trim = s.trim();
+					TypeRef t = a.getTypeRefFromFQN(trim);
+					out.println(t.getPath());
+				});
+			}
+		}
+	}
+
+	@Description("Convert package names to resource paths from stdin to stdout")
+	@Arguments(arg = {})
+	public void _packagetoresource(Options options) throws IOException {
+		try (Analyzer a = new Analyzer()) {
+			List<String> l = options._arguments().isEmpty() ? Arrays.asList("--") : options._arguments();
+
+			for (String f : l) {
+				forEachLine(f, s -> {
+					String trim = s.trim();
+					if (trim.isEmpty())
+						return;
+
+					String path = Descriptors.fqnToBinary(trim);
+					if (!path.equals("/"))
+						path = path + "/";
+					out.println(path);
+				});
+			}
+		}
+	}
+
+	private void forEachLine(String file, Consumer<String> c) throws IOException {
+		InputStream in = System.in;
+		boolean isConsole = file == null || !file.equals("--");
+		if (isConsole) {
+			File f = getFile(file);
+			if (!f.isFile()) {
+				error("No such file %s", f);
+				return;
+			}
+			in = new FileInputStream(f);
+		}
+
+		try (BufferedReader br = new BufferedReader(new InputStreamReader(in))) {
+			String line;
+			while ((line = br.readLine()) != null) {
+				c.accept(line);
+			}
+		} finally {
+			if (isConsole) {
+				in.close();
+			}
+		}
+
 	}
 
 	private void addAll(Jar output, Jar sub, String prefix, List<String> bundleClassPath) {
