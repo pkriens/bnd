@@ -22,7 +22,8 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.EnumSet;
-import java.util.GregorianCalendar;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +52,8 @@ import aQute.lib.io.ByteBufferOutputStream;
 import aQute.lib.io.IO;
 import aQute.lib.io.IOConstants;
 import aQute.lib.zip.ZipUtil;
-
+import aQute.libg.glob.Glob;
+import aQute.service.reporter.Reporter;
 public class Jar implements Closeable {
 	private static final int	BUFFER_SIZE				= IOConstants.PAGE_SIZE * 16;
 	/**
@@ -890,12 +892,13 @@ public class Jar implements Closeable {
 	public Resource remove(String path) {
 		check();
 		Resource resource = resources.remove(path);
-		if (resource != null) {
-			String dir = getDirectory(path);
-			Map<String, Resource> mdir = directories.get(dir);
-			// must be != null
-			mdir.remove(path);
-		}
+		if (resource == null)
+			return resource;
+
+		String dir = getDirectory(path);
+		Map<String,Resource> mdir = directories.get(dir);
+		// must be != null
+		mdir.remove(path);
 		return resource;
 	}
 
@@ -1028,6 +1031,22 @@ public class Jar implements Closeable {
 	 */
 	public void expand(File dir) throws Exception {
 		writeFolder(dir);
+		check();
+		dir = dir.getAbsoluteFile();
+		IO.mkdirs(dir);
+		if (!dir.isDirectory()) {
+			throw new IllegalArgumentException("Not a dir: " + dir.getAbsolutePath());
+		}
+
+		for (Map.Entry<String,Resource> entry : getResources().entrySet()) {
+			File f = getFile(dir, entry.getKey());
+			File fp = f.getParentFile();
+			if (fp.isFile()) {
+				throw new IOException("Huh");
+			}
+			IO.mkdirs(fp);
+			IO.copy(entry.getValue().openInputStream(), f);
+		}
 	}
 
 	/**
@@ -1107,7 +1126,6 @@ public class Jar implements Closeable {
 
 		MessageDigest md = MessageDigest.getInstance("SHA1");
 		OutputStream dout = new DigestOutputStream(IO.nullStream, md);
-		// dout = System.out;
 
 		Manifest m = getManifest();
 
@@ -1157,5 +1175,42 @@ public class Jar implements Closeable {
 		}
 		directories.subMap(prefixLow, prefixHigh)
 			.clear();
+	}
+
+	public int move(String from, String to) {
+		int n = 0;
+		Glob match = Glob.ALL;
+
+		if (!from.endsWith("/")) {
+			int index = from.lastIndexOf('/');
+			match = new Glob(from.substring(index + 1));
+			from = index > 0 ? from.substring(0, index + 1) : "";
+		}
+
+		boolean ignored = false;
+		Map<String,Resource> temp = new HashMap<>();
+		for (Map.Entry<String,Resource> e : getResources().entrySet()) {
+			if (e.getKey().startsWith(from)) {
+				String rest = e.getKey().substring(from.length());
+				if (match.matcher(rest).matches())
+					temp.put(e.getKey(), e.getValue());
+				else
+					ignored = true;
+			}
+		}
+
+		if (ignored && reporter != null) {
+			reporter.warning("Wildcard expression in 'from' restricted copy %s", from);
+		}
+
+		for (Map.Entry<String,Resource> e : temp.entrySet()) {
+			remove(e.getKey());
+		}
+
+		for (Map.Entry<String,Resource> e : temp.entrySet()) {
+			String out = to + e.getKey().substring(from.length());
+			putResource(out, e.getValue());
+		}
+		return temp.size();
 	}
 }

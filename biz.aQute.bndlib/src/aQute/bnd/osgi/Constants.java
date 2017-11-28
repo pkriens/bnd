@@ -458,11 +458,13 @@ public interface Constants {
 	 * Default properties as listed in defaults.bnd
 	 */
 
-	String								DEFAULT_PROP_SRC_DIR						= "src";
-	String								DEFAULT_PROP_BIN_DIR						= "bin";
-	String								DEFAULT_PROP_TESTSRC_DIR					= "testsrc";
-	String								DEFAULT_PROP_TESTBIN_DIR					= "testbin";
-	String								DEFAULT_PROP_TARGET_DIR						= "target-dir";
+	String							DEFAULT_PROP_SRC_DIR						= "src";
+	String							DEFAULT_PROP_RESOURCES_DIR					= "src.resources";
+	String							DEFAULT_PROP_BIN_DIR						= "bin";
+	String							DEFAULT_PROP_TESTSRC_DIR					= "testsrc";
+	String							DEFAULT_PROP_TESTRESOURCES_DIR				= "testsrc.resources";
+	String							DEFAULT_PROP_TESTBIN_DIR					= "testbin";
+	String							DEFAULT_PROP_TARGET_DIR						= "target-dir";
 
 	/**
 	 * If set to a long (from epoch time), overrides the real time in the macro
