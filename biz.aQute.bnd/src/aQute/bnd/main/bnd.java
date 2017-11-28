@@ -805,6 +805,13 @@ public class bnd extends Processor {
 	}
 
 	@Description("Execute a Project action, or if no parms given, show information about the project")
+	@Arguments(arg = {})
+	interface workspaceOptions extends Options {
+		@Description("The workspace directory")
+		String workspace();
+	}
+
+	@Description("Execute a Project action, or if no parms given, show information about the project")
 	public void _project(projectOptions options) throws Exception {
 		Project project = getProject(options.project());
 		if (project == null) {
@@ -1423,14 +1430,24 @@ public class bnd extends Processor {
 	}
 
 	@Description("Show info about the current directory's eclipse project")
-	@Arguments(arg = {})
-	interface eclipseOptions extends Options {
+	interface eclipseOptions extends workspaceOptions {
 		@Description("Path to the project")
 		String dir();
 	}
 
-	@Description("Show info about the current directory's eclipse project")
+	@Description("Eclipse")
 	public void _eclipse(eclipseOptions options) throws Exception {
+
+		List<String> args = options._arguments();
+		if (args.size() > 0) {
+			System.out.println("pde");
+			String cmd = args.remove(0);
+			PDECommand pdeCommand = new PDECommand(this);
+
+			options._command().execute(pdeCommand, cmd, args);
+			getInfo(pdeCommand);
+			return;
+		}
 
 		File dir = getBase();
 		if (options.dir() != null)
@@ -4525,6 +4542,9 @@ public class bnd extends Processor {
 				forEachLine(f, s -> {
 					String trim = s.trim();
 					TypeRef t = a.getTypeRefFromFQN(trim);
+					while (t.isArray())
+						t.getComponentTypeRef();
+
 					out.println(t.getPath());
 				});
 			}
