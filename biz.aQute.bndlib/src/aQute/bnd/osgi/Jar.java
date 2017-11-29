@@ -1181,7 +1181,7 @@ public class Jar implements Closeable {
 		int n = 0;
 		Glob match = Glob.ALL;
 
-		if (!from.endsWith("/")) {
+		if (!from.endsWith("/") && !from.isEmpty()) {
 			int index = from.lastIndexOf('/');
 			match = new Glob(from.substring(index + 1));
 			from = index > 0 ? from.substring(0, index + 1) : "";
@@ -1200,7 +1200,7 @@ public class Jar implements Closeable {
 		}
 
 		if (ignored && reporter != null) {
-			reporter.warning("Wildcard expression in 'from' restricted copy %s", from);
+			reporter.warning("Wildcard expression in 'from' restricted copy: from='%s/%s' to='%s'", from, match, to);
 		}
 
 		for (Map.Entry<String,Resource> e : temp.entrySet()) {
