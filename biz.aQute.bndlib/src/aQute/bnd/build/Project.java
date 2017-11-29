@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
 import java.util.jar.Manifest;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.osgi.framework.namespace.IdentityNamespace;
@@ -52,6 +53,7 @@ import org.slf4j.LoggerFactory;
 import aQute.bnd.build.Container.TYPE;
 import aQute.bnd.exporter.executable.ExecutableJarExporter;
 import aQute.bnd.exporter.runbundles.RunbundlesExporter;
+import aQute.bnd.build.model.EE;
 import aQute.bnd.header.Attrs;
 import aQute.bnd.header.OSGiHeader;
 import aQute.bnd.header.Parameters;
@@ -62,6 +64,7 @@ import aQute.bnd.osgi.About;
 import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Builder;
 import aQute.bnd.osgi.Constants;
+import aQute.bnd.osgi.Descriptors.PackageRef;
 import aQute.bnd.osgi.Instruction;
 import aQute.bnd.osgi.Instructions;
 import aQute.bnd.osgi.Jar;
@@ -92,6 +95,7 @@ import aQute.bnd.version.VersionRange;
 import aQute.lib.collections.ExtList;
 import aQute.lib.collections.Iterables;
 import aQute.lib.converter.Converter;
+import aQute.lib.fileset.FileSet;
 import aQute.lib.io.IO;
 import aQute.lib.strings.Strings;
 import aQute.lib.utf8properties.UTF8Properties;
@@ -3351,5 +3355,56 @@ public class Project extends Processor {
 				}
 			}
 		}
+	}
+
+	public static Pattern PACKAGE_INFO_VERSION_MATCH_P = Pattern
+			.compile("@[.\\p{javaJavaIdentifierPart}]*Version\\s*\\(\\s*\\\"(?<version>[^\"]+)\"\\s*\\)\\s*;");
+
+	public static String parseVersionFromJavaPackageInfo(File file) throws IOException {
+		String content = IO.collect(file);
+		Matcher m = PACKAGE_INFO_VERSION_MATCH_P.matcher(content);
+		if (m.find()) {
+			return m.group("version");
+		}
+		return null;
+	}
+
+	public static String parseVersionFromPackageInfo(File file) throws Exception {
+		UTF8Properties properties = new UTF8Properties();
+		properties.load(file, null);
+		return properties.getProperty("version");
+	}
+
+	public String findVersionFromPackageInfo(PackageRef packageRef) throws Exception {
+		String pathSuffix = packageRef.getBinary();
+		for (File dir : getSourcePath()) {
+			File pi = IO.getFile(dir, pathSuffix + "/package-info.java");
+			if (pi.isFile()) {
+				String version = parseVersionFromJavaPackageInfo(pi);
+				if (version != null)
+					return version;
+			}
+			pi = IO.getFile(dir, pathSuffix + "/packageinfo");
+			if (pi.isFile()) {
+				UTF8Properties properties = new UTF8Properties();
+				properties.load(pi, this);
+				String version = properties.getProperty("version");
+				if (version != null)
+					return version;
+			}
+		}
+		return null;
+	}
+
+	public FileSet getAllJavaSourceFiles() {
+		String srcDirs = getProperty(Constants.DEFAULT_PROP_SRC_DIR);
+		List<String> list = Strings.split(srcDirs);
+		FileSet fs = new FileSet(getBase(), "*.java", list);
+		return fs;
+	}
+
+	public EE getEE() {
+		String property = getProperty(Constants.JAVAC_TARGET, "1.8");
+		return EE.fromVersion(property);
 	}
 }
