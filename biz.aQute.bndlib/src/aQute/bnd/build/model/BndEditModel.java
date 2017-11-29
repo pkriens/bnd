@@ -51,6 +51,7 @@ import aQute.bnd.build.model.conversions.SimpleListConverter;
 import aQute.bnd.build.model.conversions.VersionedClauseConverter;
 import aQute.bnd.osgi.Constants;
 import aQute.bnd.osgi.Processor;
+import aQute.bnd.properties.Document;
 import aQute.bnd.properties.IDocument;
 import aQute.bnd.properties.IRegion;
 import aQute.bnd.properties.LineType;
@@ -380,7 +381,7 @@ public class BndEditModel {
 		this.workspace = workspace;
 	}
 
-	public BndEditModel(IDocument document) throws IOException {
+	public BndEditModel(Document document) throws IOException {
 		this();
 		loadFrom(document);
 	}
