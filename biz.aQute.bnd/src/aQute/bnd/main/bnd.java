@@ -18,6 +18,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -49,7 +50,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.jar.Attributes;
 import java.util.jar.Attributes.Name;
-import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -109,6 +109,8 @@ import aQute.bnd.osgi.Processor;
 import aQute.bnd.osgi.Resource;
 import aQute.bnd.osgi.Verifier;
 import aQute.bnd.osgi.eclipse.EclipseClasspath;
+import aQute.bnd.osgi.repository.XMLResourceGenerator;
+import aQute.bnd.osgi.resource.ResourceBuilder;
 import aQute.bnd.repository.maven.provider.NexusCommand;
 import aQute.bnd.service.Actionable;
 import aQute.bnd.service.RepositoryPlugin;
@@ -122,6 +124,7 @@ import aQute.lib.base64.Base64;
 import aQute.lib.collections.ExtList;
 import aQute.lib.collections.MultiMap;
 import aQute.lib.collections.SortedList;
+import aQute.lib.fileset.FileSet;
 import aQute.lib.filter.Filter;
 import aQute.lib.getopt.Arguments;
 import aQute.lib.getopt.CommandLine;
@@ -151,6 +154,11 @@ import aQute.service.reporter.Reporter;
  * Utility to make bundles. @version $Revision: 1.14 $
  */
 public class bnd extends Processor {
+	static {
+		System.setProperty("org.slf4j.simpleLogger.logFile", "System.err");
+		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
+		System.setProperty("org.slf4j.simpleLogger.showShortLogName ", "true");
+	}
 	private final static Logger					logger					= LoggerFactory.getLogger(bnd.class);
 	static Pattern								ASSIGNMENT				= Pattern.compile(																//
 			"([^=]+) (= ( ?: (\"|'|) (.+) \\3 )? ) ?", Pattern.COMMENTS);
@@ -1059,6 +1067,18 @@ public class bnd extends Processor {
 		});
 	}
 
+	@Description("Show all projects")
+	public void _projects(projectOptions opts) throws Exception {
+
+		perProject(opts, new PerProject() {
+
+			@Override
+			public void doit(Project p) throws Exception {
+				out.println(p);
+			}
+		});
+	}
+
 	private boolean verifyDependencies(Project project, boolean implies, boolean test) throws Exception {
 		if (!implies) {
 			return true;
@@ -1440,7 +1460,6 @@ public class bnd extends Processor {
 
 		List<String> args = options._arguments();
 		if (args.size() > 0) {
-			System.out.println("pde");
 			String cmd = args.remove(0);
 			PDECommand pdeCommand = new PDECommand(this);
 
@@ -3086,6 +3105,9 @@ public class bnd extends Processor {
 		@Description("Set header(s) to search, can be wildcarded. The default is all headers (*).")
 		Set<String> headers();
 
+		@Description("Search path names of resources. No resources are included unless expressly specified.")
+		Set<String> resources();
+
 	}
 
 	@Description("Grep the manifest of bundles/jar files. ")
@@ -3128,7 +3150,15 @@ public class bnd extends Processor {
 				continue;
 			}
 
-			try (JarInputStream in = new JarInputStream(IO.stream(file))) {
+			try (Jar in = new Jar(file.getName(), IO.stream(file))) {
+
+				if (opts.resources() != null) {
+					Instructions selection = new Instructions(opts.resources());
+					Collection<String> selected = selection.select(in.getResources().keySet(), null, false);
+					selected.forEach(path -> {
+						out.printf("%40s : %s\n", fileName, path);
+					});
+				}
 				Manifest m = in.getManifest();
 				for (Object header : m.getMainAttributes()
 					.keySet()) {
@@ -4570,6 +4600,86 @@ public class bnd extends Processor {
 				});
 			}
 		}
+	}
+
+	@Description("Create an XML Repository index")
+	@Arguments(arg = {
+			"fileset..."
+	})
+	interface IndexOptions extends Options {
+		@Description("Paths to resources are defined relative to this root. Default is the base directory of this command (either current working directory or set with bnd -b)")
+		String base();
+
+		@Description("Base uri, this will be used to resolve the actual file uri after it is relativized against the base")
+		URI uri(URI deflt);
+
+		@Description("Output file. If it ends in .gz it will be compressed")
+		String out(String deflt);
+
+		@Description("The name of the repository")
+		String name(String deflt);
+
+		@Description("Set the depth of referals. If there are multiple referrals, with different depts, specify depths multiple times in same order")
+		int[] depth(int[] is);
+
+		@Description("Add a Referral.")
+		URI[] referral();
+	}
+
+	@Description("Create an XML Repository index")
+	public void _index(IndexOptions options) throws Exception {
+		File root = options.base() == null ? getBase() : getFile(options.base());
+		if (!root.isDirectory()) {
+			error("The root %s is not a directory", root);
+			return;
+		}
+		URI uri = options.uri(root.toURI());
+
+		File out = getFile(options.out("index.xml"));
+		if (!out.getParentFile().isDirectory())
+			out.getParentFile().mkdirs();
+
+		List<org.osgi.resource.Resource> resources = new ArrayList<>();
+
+		for (String fileset : options._arguments()) {
+			trace("file set %s %s %s", fileset, root, uri);
+			FileSet fs = new FileSet(root, fileset);
+			for (File file : fs.getFiles()) {
+				try {
+					URI actual = file.toURI();
+					String path = root.toURI().relativize(actual).getPath();
+					actual = uri.resolve(path);
+					trace("file %s %s", actual, path);
+					ResourceBuilder rb = new ResourceBuilder();
+					rb.addFile(file, actual);
+					org.osgi.resource.Resource resource = rb.build();
+					resources.add(resource);
+				} catch (Exception e) {
+					exception(e, "Failed to parse %s", fs);
+				}
+			}
+		}
+
+		XMLResourceGenerator gen = new XMLResourceGenerator();
+
+		int[] depth = options.depth(new int[] {
+				5
+		});
+
+		URI[] referrals = options.referral();
+		if (referrals != null) {
+			for (int i = 0; i < depth.length; i++) {
+				int d = i < depth.length ? depth[i] : depth[0];
+				gen.referral(referrals[i], d);
+			}
+		}
+
+		if (out.getName().endsWith(".gz"))
+			gen.compress();
+
+		gen.name(options.name(getBase().getName())).//
+				resources(resources).//
+				save(out);
 	}
 
 	private void forEachLine(String file, Consumer<String> c) throws IOException {

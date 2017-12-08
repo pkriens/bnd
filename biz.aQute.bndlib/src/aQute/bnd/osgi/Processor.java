@@ -102,7 +102,6 @@ public class Processor extends Domain implements Reporter, Registry, Constants, 
 	}
 
 	static final int								BUFFER_SIZE			= IOConstants.PAGE_SIZE * 1;
-
 	static Pattern									PACKAGES_IGNORED	= Pattern
 		.compile("(java\\.lang\\.reflect|sun\\.reflect).*");
 
@@ -1156,6 +1155,7 @@ public class Processor extends Domain implements Reporter, Registry, Constants, 
 							if (fileMustExist)
 								error("Included file %s %s", file,
 									(file.isDirectory() ? "is directory" : "does not exist"));
+								        (file.isDirectory() ? "is directory" : "does not exist"));
 						} catch (Exception e) {
 							if (fileMustExist)
 								exception(e, "Error in processing included URL: %s", value);

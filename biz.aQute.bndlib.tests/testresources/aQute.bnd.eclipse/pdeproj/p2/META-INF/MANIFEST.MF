@@ -1,12 +1,6 @@
 Manifest-Version: 1.0
-Export-Package: com.google.gson;version="2.2.5",
- com.google.gson.annotations;version="2.2.5", 
- com.google.gson.reflect;version="2.2.5",
- com.google.gson.stream;version="2.2.5",
- com.google.gson.internal;version="2.2.5",
- com.google.gson.internal.bind;version="2.2.5"
+Bundle-ClassPath: lib/bcpg-jdk15on-149.jar, lib/bcprov-jdk15on-149.jar, .
 Built-By: jleitch
-Bundle-Name: Gson
 Created-By: Apache Maven 3.0.4
 Bundle-RequiredExecutionEnvironment: J2SE-1.5
 Bundle-Vendor: Google Gson Project
@@ -15,6 +9,6 @@ Build-Jdk: 1.6.0_27
 Bundle-Version: 2.2.5.qualifier
 Bundle-ManifestVersion: 2
 Bundle-Description: Google Gson library
-Bundle-SymbolicName: com.google.gson
+Bundle-SymbolicName: com.foo.bar
 Bundle-Localization: plugin
 Archiver-Version: Plexus Archiver

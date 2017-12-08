@@ -80,8 +80,6 @@ public class EclipseBuildProperties {
 
 		public void removeOutputs(Jar content) {
 			content.removePrefix(output);
-			content.remove(".project");
-			content.remove(".classpath");
 			content.remove("build.properties");
 		}
 

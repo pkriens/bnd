@@ -141,12 +141,13 @@ public class RepoCommand {
 			Project p = bnd.getProject(opts.project());
 
 			if (p != null) {
-				repos.addAll(p.getWorkspace()
-					.getRepositories());
+				repos.addAll(p.getWorkspace().getRepositories());
+				repos.add(p.getWorkspace().getWorkspaceRepository());
 			} else {
 				Workspace w = bnd.getWorkspace((File) null);
 				if (w != null) {
 					repos.addAll(w.getRepositories());
+					repos.add(p.getWorkspace().getWorkspaceRepository());
 				}
 			}
 		}

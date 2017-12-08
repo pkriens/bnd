@@ -12,3 +12,13 @@ javac.compliance:       ${javac.source}
 javac.debug:            on
 
 -plugin.lifecycle = aQute.bnd.plugin.git.GitPlugin
+
+
+Bundle-Vendor:          Google Gson Project
+
+pde.extensions = \
+    groovy; -buildpath="some.groovy.lib", \
+    xtend; -buildpath="some.xtend.lib"
+    
+pde.transitives = \
+    com.google.gson; -buildpath="some.gson.lib"

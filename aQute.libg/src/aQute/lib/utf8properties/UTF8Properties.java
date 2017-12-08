@@ -87,6 +87,7 @@ public class UTF8Properties extends Properties {
 			parser.setSyntaxHeaders(syntaxHeaders);
 
 		parser.parse();
+		return this;
 	}
 
 	public void load(File file, Reporter reporter, String[] syntaxHeaders) throws Exception {

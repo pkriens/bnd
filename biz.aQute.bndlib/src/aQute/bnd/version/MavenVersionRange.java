@@ -31,12 +31,12 @@ public class MavenVersionRange {
 	private final MavenVersionRange	nextOr;
 
 	public MavenVersionRange(String range) {
-		this(RESTRICTION_P.matcher(range == null ? "0" : range));
+		this(RESTRICTION_P.matcher(range == null ? "0" : range), range);
 	}
 
-	private MavenVersionRange(Matcher m) {
+	private MavenVersionRange(Matcher m, String v) {
 		if (!m.lookingAt())
-			throw new IllegalArgumentException("Invalid version range " + m);
+			throw new IllegalArgumentException("Invalid version range " + v);
 
 		pair = m.group("pair") != null;
 		if (pair) {
@@ -75,8 +75,8 @@ public class MavenVersionRange {
 
 		if (m.group("comma") != null) {
 			m.region(m.end(), m.regionEnd());
-			nextOr = new MavenVersionRange(m);
-		} else {
+			nextOr = new MavenVersionRange(m, v);
+		} else
 			nextOr = null;
 		}
 	}

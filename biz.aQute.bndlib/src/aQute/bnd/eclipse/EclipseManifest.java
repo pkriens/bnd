@@ -15,27 +15,29 @@ import aQute.bnd.header.Parameters;
 import aQute.bnd.osgi.Constants;
 import aQute.bnd.osgi.Domain;
 import aQute.bnd.osgi.Processor;
+import aQute.bnd.osgi.Verifier;
 
 public class EclipseManifest {
 	public static final String	HEADER_FORMAT		= "%-40s: %s\n";
-	public static String				REMOVE_HEADERS[]	= { "Built-By", "Created-By",
-			"Bundle-RequiredExecutionEnvironment",
-			"Build-Jdk", "Bundle-ManifestVersion", "ManifestVersion", "Archiver-Version", Constants.BUNDLE_CLASSPATH,
-			Constants.EXPORT_PACKAGE, "Manifest-Version", Constants.BUNDLE_SYMBOLICNAME, Constants.SERVICE_COMPONENT };
+	public static String		REMOVE_HEADERS[]	= {
+			"Built-By", "Created-By", "Bundle-RequiredExecutionEnvironment", "Build-Jdk", "Bundle-ManifestVersion",
+			"ManifestVersion", "Archiver-Version", Constants.BUNDLE_CLASSPATH, Constants.EXPORT_PACKAGE,
+			"Manifest-Version", Constants.BUNDLE_SYMBOLICNAME, Constants.SERVICE_COMPONENT, Constants.IMPORT_PACKAGE,
+			"Originally-Created-By", Constants.REQUIRE_BUNDLE
+	};
 
-	static String[]				PARAMETER_HEADERS	= { Constants.BUNDLE_ACTIVATIONPOLICY,
-			Constants.BUNDLE_ACTIVATOR,
-			Constants.BUNDLE_CATEGORY, Constants.BUNDLE_DEVELOPERS,
-			Constants.BUNDLE_LICENSE, Constants.BUNDLE_LOCALIZATION, Constants.BUNDLE_NATIVECODE,
-			Constants.EXPORT_SERVICE, Constants.FRAGMENT_HOST, Constants.IMPORT_PACKAGE,
-			Constants.IMPORT_SERVICE,
-			Constants.REQUIRE_CAPABILITY, Constants.PROVIDE_CAPABILITY,
-			Constants.EXPORT_CONTENTS, Constants.EXPORT_PACKAGE };
+	static String[]				PARAMETER_HEADERS	= {
+			Constants.BUNDLE_ACTIVATIONPOLICY, Constants.BUNDLE_ACTIVATOR, Constants.BUNDLE_CATEGORY,
+			Constants.BUNDLE_DEVELOPERS, Constants.BUNDLE_LICENSE, Constants.BUNDLE_LOCALIZATION,
+			Constants.BUNDLE_NATIVECODE, Constants.EXPORT_SERVICE, Constants.FRAGMENT_HOST, Constants.IMPORT_SERVICE,
+			Constants.PROVIDE_CAPABILITY, Constants.EXPORT_CONTENTS,
+			Constants.EXPORT_PACKAGE
+	};
 
 	private final Processor		properties;
 	private Domain				manifest;
-	private String bsn;
-	
+	private String				bsn;
+
 	EclipseManifest(Processor properties, String manifest) throws IOException {
 		this.properties = properties;
 		File file = properties.getFile(manifest);
@@ -43,19 +45,21 @@ public class EclipseManifest {
 			this.properties.error("Manifest not found %s", file);
 
 		this.manifest = Domain.domain(file);
-		
+
 		bsn = this.manifest.getBundleSymbolicName().getKey();
-		if ( bsn == null)
+		if (bsn == null)
 			bsn = properties.getBase().getName();
 		assert bsn != null;
 	}
 
-	public String toBndFile() throws IOException {
+	public String toBndFile(Set<String> sourcePackages, String workingset) throws IOException {
 		try (Formatter model = new Formatter()) {
-			
+
 			Attrs attrs = manifest.getBundleSymbolicName().getValue();
 			if (!attrs.isEmpty()) {
-				model.format(HEADER_FORMAT, Constants.BUNDLE_SYMBOLICNAME, manifest.getBundleSymbolicName().toString());
+				// TODO not clear what to do with bsn, bnd does not like it
+				// model.format(HEADER_FORMAT, Constants.BUNDLE_SYMBOLICNAME,
+				// manifest.getBundleSymbolicName().toString());
 			}
 
 			Parameters bcpin = manifest.getBundleClasspath();
@@ -79,21 +83,45 @@ public class EclipseManifest {
 				headers.remove(name);
 				String value = manifest.get(name);
 				if (value != null) {
-					Parameters parameters = new Parameters(value);
-					model.format(HEADER_FORMAT, name, format(parameters));
+					if (!value.equals(properties.getProperty(name))) {
+						Parameters parameters = new Parameters(value);
+						model.format(HEADER_FORMAT, name, format(parameters));
+					}
 				}
 			}
 
-			for (String header : headers) {
-				model.format(HEADER_FORMAT, header, manifest.get(header).trim());
+			Parameters requireBundle = manifest.getRequireBundle();
+			if (requireBundle == null) {
+				model.format(HEADER_FORMAT, "# Require-Bundle", requireBundle);
 			}
 
+			Parameters exports = manifest.getExportContents();
+			exports.putAll(manifest.getExportPackage());
+			Parameters privates = new Parameters(sourcePackages);
+			privates.keySet().removeAll(exports.keySet());
+			privates.keySet().removeIf(pname -> !Verifier.PACKAGEPATTERN.matcher(pname).matches());
+
+			if (!privates.isEmpty())
+				model.format(HEADER_FORMAT, Constants.PRIVATE_PACKAGE, format(privates));
+
+			for (String header : headers) {
+
+				String value = manifest.get(header).trim();
+				if (!value.equals(properties.getProperty(header))) {
+					model.format(HEADER_FORMAT, header, value);
+				}
+
+			}
+
+			if (workingset != null) {
+				model.format(HEADER_FORMAT, "-workingset", workingset);
+			}
 			return model.toString();
 		}
 
 	}
 
-	private String format(Parameters parameters) throws IOException {
+	static String format(Parameters parameters) throws IOException {
 		if (parameters.isEmpty())
 			return "";
 
@@ -104,10 +132,10 @@ public class EclipseManifest {
 		StringBuilder sb = new StringBuilder();
 
 		String del = "\\\n    ";
-		for (Map.Entry<String, Attrs> e : parameters.entrySet()) {
+		for (Map.Entry<String,Attrs> e : parameters.entrySet()) {
 			sb.append(del).append(e.getKey());
 			Attrs value = e.getValue();
-			for (Entry<String, String> a : value.entrySet()) {
+			for (Entry<String,String> a : value.entrySet()) {
 				sb.append("; \\\n        ");
 				sb.append(a.getKey().trim());
 				Type type = value.getType(e.getKey());

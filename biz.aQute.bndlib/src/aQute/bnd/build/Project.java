@@ -3396,15 +3396,89 @@ public class Project extends Processor {
 		return null;
 	}
 
-	public FileSet getAllJavaSourceFiles() {
+	public Collection<File> getAllJavaSourceFiles() {
+		return getAllSourceFiles(new String[] {
+				"java"
+		});
+	}
+
+	public Collection<File> getAllSourceFiles(String[] extensions) {
 		String srcDirs = getProperty(Constants.DEFAULT_PROP_SRC_DIR);
 		List<String> list = Strings.split(srcDirs);
-		FileSet fs = new FileSet(getBase(), "*.java", list);
-		return fs;
+
+		StringBuilder sb = new StringBuilder();
+		String del = "";
+		for (String srcDir : list) {
+
+			if (!srcDir.endsWith("/"))
+				srcDir = srcDir + "/";
+
+			for (String s : extensions) {
+				sb.append(del).append(srcDir).append("**/*.").append(s);
+				del = ",";
+			}
+		}
+
+		FileSet fs = new FileSet(getBase(), sb.toString());
+		return fs.getFiles();
 	}
 
 	public EE getEE() {
 		String property = getProperty(Constants.JAVAC_TARGET, "1.8");
 		return EE.fromVersion(property);
+	}
+
+	public Set<String> getAllSourcePackages() {
+		String srcDirs = getProperty(Constants.DEFAULT_PROP_SRC_DIR);
+		List<String> list = Strings.split(srcDirs);
+		Set<String> packages = new HashSet<>();
+		for (String path : list) {
+			File d = getFile(path);
+			traverse(d, packages, "");
+		}
+		return packages;
+	}
+
+	private void traverse(File d, Set<String> packages, String prefix) {
+		boolean hasFile = false;
+
+		for (File sub : d.listFiles()) {
+			if (sub.isFile() && sub.getName().endsWith(".java")) {
+				hasFile |= true;
+			} else if (sub.isDirectory()) {
+				if (prefix.isEmpty())
+					traverse(sub, packages, sub.getName());
+				else
+					traverse(sub, packages, prefix + "." + sub.getName());
+			}
+		}
+		if (hasFile && !prefix.isEmpty())
+			packages.add(prefix);
+	}
+
+	public String getResourcePath(String resource) {
+		for (String dir : Strings.split(getProperty(Constants.DEFAULT_PROP_RESOURCES_DIR))) {
+			if (!dir.endsWith("/"))
+				dir = dir + "/";
+
+			String path = dir + resource;
+			File file = getFile(path);
+			if (file.isFile())
+				return path;
+		}
+		return null;
+	}
+
+	public String getSourcePath(String resource) {
+		for (String dir : Strings.split(getProperty(Constants.DEFAULT_PROP_SRC_DIR))) {
+			if (!dir.endsWith("/"))
+				dir = dir + "/";
+
+			String path = dir + resource;
+			File file = getFile(path);
+			if (file.isFile())
+				return path;
+		}
+		return null;
 	}
 }

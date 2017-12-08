@@ -1,14 +1,37 @@
 package aQute.bnd.build.model.clauses;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 import org.osgi.framework.Constants;
 
 import aQute.bnd.header.Attrs;
+import aQute.bnd.header.Parameters;
 import aQute.bnd.version.VersionRange;
 
 public class VersionedClause extends HeaderClause implements Cloneable {
+
+	public static final Comparator<VersionedClause> COMPARATOR = new Comparator<VersionedClause>() {
+
+		@Override
+		public int compare(VersionedClause o1, VersionedClause o2) {
+			int n = o1.getName().compareTo(o2.getName());
+			if (n != 0)
+				return n;
+
+			try {
+				VersionRange v1 = new VersionRange(o1.getVersionRange());
+				VersionRange v2 = new VersionRange(o2.getVersionRange());
+				return v1.getLow().compareTo(v2.getLow());
+			} catch (Exception e) {
+				return o1.getVersionRange().compareTo(o2.getVersionRange());
+			}
+		}
+	};
+
 	public VersionedClause(String name, Attrs attribs) {
 		super(name, attribs);
 	}
@@ -100,5 +123,14 @@ public class VersionedClause extends HeaderClause implements Cloneable {
 			}
 		}
 		return n;
+	}
+
+	public static List<VersionedClause> from(Parameters bp) {
+		ArrayList<VersionedClause> list = new ArrayList<>();
+		for (Map.Entry<String,Attrs> e : bp.entrySet()) {
+			VersionedClause vc = new VersionedClause(e.getKey(), e.getValue());
+			list.add(vc);
+		}
+		return list;
 	}
 }

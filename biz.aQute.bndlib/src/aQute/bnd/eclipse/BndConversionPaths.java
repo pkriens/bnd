@@ -4,6 +4,8 @@ import java.util.Formatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import aQute.bnd.header.OSGiHeader;
@@ -96,6 +98,18 @@ public class BndConversionPaths {
 				content.remove(path);
 			}
 		}
+	}
+
+	public Set<String> getRelative(Set<String> paths) {
+		Set<String> relative = new TreeSet<>();
+		for (String dir : directories) {
+			for (String path : paths) {
+				if (path.startsWith(dir)) {
+					relative.add(path.substring(dir.length()));
+				}
+			}
+		}
+		return relative;
 	}
 
 }

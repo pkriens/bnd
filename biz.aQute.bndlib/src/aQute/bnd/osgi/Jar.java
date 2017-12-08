@@ -54,6 +54,7 @@ import aQute.lib.io.IOConstants;
 import aQute.lib.zip.ZipUtil;
 import aQute.libg.glob.Glob;
 import aQute.service.reporter.Reporter;
+
 public class Jar implements Closeable {
 	private static final int	BUFFER_SIZE				= IOConstants.PAGE_SIZE * 16;
 	/**
@@ -100,6 +101,7 @@ public class Jar implements Closeable {
 	private Compression											compression				= Compression.DEFLATE;
 	private boolean												closed;
 	private String[]											algorithms;
+	Reporter									reporter;
 
 	public Jar(String name) {
 		this.name = name;
@@ -1180,12 +1182,29 @@ public class Jar implements Closeable {
 	public int move(String from, String to) {
 		int n = 0;
 		Glob match = Glob.ALL;
+		boolean isWildcard;
 
 		if (!from.endsWith("/") && !from.isEmpty()) {
 			int index = from.lastIndexOf('/');
-			match = new Glob(from.substring(index + 1));
+			String suffix = from.substring(index + 1);
+			isWildcard = suffix.contains("*");
+			if (isWildcard && !to.endsWith("/") && reporter != null) {
+
+				int index2 = to.lastIndexOf('/');
+				String toName = to.substring(index2 + 1);
+				if (toName.equals(suffix)) {
+					to = to.substring(0, index2);
+				} else {
+					reporter.error(
+							"If wildcards are used to copy resources then the to must be a directory, it is a file: %s->%s",
+							from, to);
+				}
+			}
+
+			match = new Glob(suffix);
 			from = index > 0 ? from.substring(0, index + 1) : "";
-		}
+		} else
+			isWildcard = false;
 
 		boolean ignored = false;
 		Map<String,Resource> temp = new HashMap<>();
@@ -1199,7 +1218,7 @@ public class Jar implements Closeable {
 			}
 		}
 
-		if (ignored && reporter != null) {
+		if (ignored && reporter != null && isWildcard) {
 			reporter.warning("Wildcard expression in 'from' restricted copy: from='%s/%s' to='%s'", from, match, to);
 		}
 
@@ -1208,7 +1227,7 @@ public class Jar implements Closeable {
 		}
 
 		for (Map.Entry<String,Resource> e : temp.entrySet()) {
-			String out = to + e.getKey().substring(from.length());
+			String out = to.endsWith("/") ? to + e.getKey().substring(from.length()) : to;
 			putResource(out, e.getValue());
 		}
 		return temp.size();
