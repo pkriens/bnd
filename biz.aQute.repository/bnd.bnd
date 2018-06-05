@@ -30,6 +30,10 @@ jetty.libs: org.apache.geronimo.specs.geronimo-servlet_2.5_spec;version=1.2,\
 	biz.aQute.http.testservers;version=latest,\
     slf4j.simple;version=latest
 
+repoindex-pkgs: \
+	aQute.bnd.osgi.resource,\
+	org.osgi.resource;-split-package:=first
+
 Export-Package: \
 	aQute.bnd.deployer.http;bnd-plugins=true,\
 	aQute.p2.api,\

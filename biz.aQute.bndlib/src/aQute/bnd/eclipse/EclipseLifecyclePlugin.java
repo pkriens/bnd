@@ -145,7 +145,11 @@ public class EclipseLifecyclePlugin extends LifeCyclePlugin {
 	// <classpathentry kind="output" path="bin"/>
 	// </classpath>
 
-	public static Tag toClasspathTag(Project project, org.w3c.dom.Document original) throws XPathExpressionException {
+	public static String toClasspath(Project project, org.w3c.dom.Document original) throws Exception {
+		return toClasspathTag(project, original).toString();
+	}
+
+	static Tag toClasspathTag(Project project, org.w3c.dom.Document original) throws Exception {
 
 		String mainOutput = project.getProperty(Constants.DEFAULT_PROP_BIN_DIR);
 		String testOutput = project.getProperty(Constants.DEFAULT_PROP_TESTBIN_DIR);

@@ -186,7 +186,7 @@ public class bnd extends Processor {
 																				return false;
 																			};
 																		};
-	private static final String					DEFAULT_LOG_LEVEL_KEY	= org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY;
+	private static final String					DEFAULT_LOG_LEVEL_KEY	= "org.slf4j.simpleLogger.defaultLogLevel";
 
 	static Pattern								JARCOMMANDS				= Pattern
 			.compile("(cv?0?(m|M)?f?)|(uv?0?M?f?)|(xv?f?)|(tv?f?)|(i)");
@@ -254,7 +254,7 @@ public class bnd extends Processor {
 		String base();
 
 		@Description("Trace command progress")
-		boolean trace();
+		boolean progress();
 
 		@Description("Show log debug output")
 		boolean debug();
@@ -421,7 +421,7 @@ public class bnd extends Processor {
 		try {
 			set(FAIL_OK, options.failok() + "");
 			setExceptions(options.exceptions());
-			setTrace(options.trace());
+			setTrace(options.progress());
 			doLogging(options);
 
 			workspace = Workspace.findWorkspace(IO.work);
@@ -1024,7 +1024,7 @@ public class bnd extends Processor {
 		boolean continuous();
 
 		@Description("Set the -runtrace flag")
-		boolean trace();
+		boolean progress();
 	}
 
 	@Description("Test a project according to an OSGi test")
@@ -1056,7 +1056,7 @@ public class bnd extends Processor {
 				if (opts.continuous())
 					project.setProperty(TESTCONTINUOUS, "true");
 
-				if (opts.trace() || isTrace())
+				if (opts.progress() || isTrace())
 					project.setProperty(RUNTRACE, "true");
 
 				project.test(testNames);
@@ -2800,13 +2800,13 @@ public class bnd extends Processor {
 		} else {
 			File f = getFile(where);
 			if (f.isFile() && f.getName().endsWith(Run.DEFAULT_BNDRUN_EXTENSION)) {
-				trace("Using bndrun file %s", f);
+				progress("Using bndrun file %s", f);
 				Run run = Run.createRun(null, f);
 				ws = run.getWorkspace();
 			} else {
 				ws = Workspace.findWorkspace(f);
 			}
-			trace("Workspace %s %s", ws, ws.getProperty("-standalone"));
+			progress("Workspace %s %s", ws, ws.getProperty("-standalone"));
 		}
 		return ws;
 	}
@@ -4878,12 +4878,12 @@ public class bnd extends Processor {
 	}
 
 	public void _dsannotate(DSAnnotationsOptions options) throws Exception {
-		trace("dsannotate %s", options);
+		progress("dsannotate %s", options);
 		List<File> sources = new ArrayList<>();
 		if (options.sources() != null) {
 
 			for (String dir : options.sources()) {
-				trace("Source dir %s", dir);
+				progress("Source dir %s", dir);
 
 				File file = getFile(dir);
 				if (!file.isDirectory()) {
@@ -4899,20 +4899,20 @@ public class bnd extends Processor {
 			converter.setBackup(options.backup());
 
 			if (options._arguments().isEmpty()) {
-				trace("No args, going for project or workspace");
+				progress("No args, going for project or workspace");
 
 				Workspace ws = null;
 				Project p = getProject(options.project());
 				if (p != null) {
-					trace("Found project %s", p);
+					progress("Found project %s", p);
 					annotateProject(sources, converter, p);
 				} else {
 					ws = getWorkspace(options.workspace());
 					if (ws == null) {
-						trace("Found no project, no workspace");
+						progress("Found no project, no workspace");
 						error("No project, no workspace, no target dir/files ... Do not know what to do");
 					} else {
-						trace("Found workspace");
+						progress("Found workspace");
 
 						for (Project project : ws.getAllProjects()) {
 							annotateProject(sources, converter, project);
@@ -4922,13 +4922,13 @@ public class bnd extends Processor {
 				}
 
 			} else {
-				trace("Using arguments");
+				progress("Using arguments");
 
 				for (String target : options._arguments()) {
-					trace("Fileset %s", target);
+					progress("Fileset %s", target);
 					FileSet fileset = new FileSet(getBase(), target);
 					for (File xml : fileset.getFiles()) {
-						trace("File %s", xml);
+						progress("File %s", xml);
 						converter.annotate(xml);
 					}
 				}
@@ -4938,7 +4938,7 @@ public class bnd extends Processor {
 	}
 
 	private void annotateProject(List<File> sources, ConvertDSXmlToAnnotations converter, Project p) throws Exception {
-		trace("Annotate project %s", p);
+		progress("Annotate project %s", p);
 		sources.addAll(p.getSourcePath());
 		SourceSet main = BuildFacet.getBuildFacets(p)[0].resources();
 
@@ -4946,7 +4946,7 @@ public class bnd extends Processor {
 			FileSet fileSet = new FileSet(dir, "OSGI-INF/*.xml");
 
 			for (File xml : fileSet.getFiles()) {
-				trace("File %s", xml);
+				progress("File %s", xml);
 				converter.annotate(xml);
 			}
 		}

@@ -1,7 +1,5 @@
 package aQute.bnd.main;
 
-import static aQute.bnd.eclipse.EclipseLifecyclePlugin.toClasspathTag;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -23,6 +21,7 @@ import aQute.bnd.build.BuildFacet;
 import aQute.bnd.build.Project;
 import aQute.bnd.build.Workspace;
 import aQute.bnd.build.util.UpdatePaths;
+import aQute.bnd.eclipse.EclipseLifecyclePlugin;
 import aQute.bnd.eclipse.LibPde;
 import aQute.bnd.header.Attrs;
 import aQute.bnd.main.bnd.projectOptions;
@@ -33,7 +32,6 @@ import aQute.lib.getopt.Arguments;
 import aQute.lib.getopt.Description;
 import aQute.lib.io.IO;
 import aQute.lib.strings.Strings;
-import aQute.lib.tag.Tag;
 import aQute.lib.utf8properties.UTF8Properties;
 
 public class EclipseCommand extends Processor {
@@ -157,14 +155,14 @@ public class EclipseCommand extends Processor {
 
 		try (InputStream in = new FileInputStream(f)) {
 			Document doc = db.parse(in);
-			Tag classpathTag = toClasspathTag(project, doc);
+			String classpath = EclipseLifecyclePlugin.toClasspath(project, doc);
 			if (options.update())
-				IO.store(classpathTag.toString(), f);
+				IO.store(classpath, f);
 			else {
 				bnd.out.println("Current version");
 				bnd.out.println(oldClasspath);
 				bnd.out.println("Proposed version (use -u to copy to this to " + f);
-				bnd.out.println(classpathTag.toString());
+				bnd.out.println(classpath);
 			}
 
 		}
