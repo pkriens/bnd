@@ -861,14 +861,12 @@ public class IO {
 	public static File mkdirs(File dir) throws IOException {
 		return mkdirs(dir.toPath()).toFile();
 	}
-	public static void mkdirs(Path dir) throws IOException {
-		if (Files.exists(dir) && Files.isDirectory(dir))
-			return;
 
-		if (Files.isRegularFile(dir)) {
-			throw new IOException("Is a regular file " + dir);
+	public static Path mkdirs(Path dir) throws IOException {
+		if (Files.isSymbolicLink(dir)) {
+			return mkdirs(Files.readSymbolicLink(dir));
 		}
-		Files.createDirectories(dir);
+		return Files.createDirectories(dir);
 	}
 
 	public static long drain(InputStream in) throws IOException {

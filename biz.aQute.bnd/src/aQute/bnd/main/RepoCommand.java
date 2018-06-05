@@ -318,7 +318,7 @@ public class RepoCommand {
 			for (RepositoryPlugin repo : repos) {
 				File file = repo.get(bsn, Version.parseVersion(range), null);
 				if (file != null) {
-					bnd.trace("maven artifact %s", file);
+					bnd.progress("maven artifact %s", file);
 					copyit(opts, file);
 					return;
 				}
@@ -512,14 +512,8 @@ public class RepoCommand {
 						continue;
 
 					if (options.remove() == false && options.added() == false || (options.remove() //
-<<<<<<< HEAD
-						&& version.getDelta() == Delta.REMOVED)
-						|| (options.added() && version.getDelta() == Delta.ADDED)) {
-=======
 							&& version.getDelta() == Delta.REMOVED)
 							|| (options.added() && version.getDelta() == Delta.ADDED)) {
->>>>>>> wip
-
 						map.add(bsn.getName(), version.getName());
 					}
 				}
@@ -584,11 +578,7 @@ public class RepoCommand {
 	 * Copy
 	 */
 	@Arguments(arg = {
-<<<<<<< HEAD
-		"source", "dest"
-=======
 			"source", "dest", "bsn[:version]..."
->>>>>>> wip
 	})
 	interface CopyOptions extends projectOptions {
 
@@ -759,7 +749,7 @@ public class RepoCommand {
 						}
 					}
 				} else {
-					bnd.trace("skip %s", name);
+					bnd.progress("skip %s", name);
 				}
 
 			}
@@ -887,7 +877,7 @@ public class RepoCommand {
 		String dest = null;
 		if (opts.dest() == null) {
 			dest = ws.getProperty(Constants.RELEASEREPO);
-			bnd.trace("Using release repo %s", dest);
+			bnd.progress("Using release repo %s", dest);
 		}
 
 		if (dest == null) {
@@ -907,12 +897,12 @@ public class RepoCommand {
 			if (srcRepo == null) {
 				bnd.error("No source repo %s found", src);
 			} else {
-				bnd.trace("Using src repo %s", srcRepo);
+				bnd.progress("Using src repo %s", srcRepo);
 				sources.add(srcRepo);
 			}
 		}
 		if (sources.isEmpty()) {
-			bnd.trace("Using all repositories as source");
+			bnd.progress("Using all repositories as source");
 			sources.addAll(ws.getRepositories());
 		}
 		if (sources.isEmpty()) {

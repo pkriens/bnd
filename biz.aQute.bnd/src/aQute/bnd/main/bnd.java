@@ -99,6 +99,7 @@ import aQute.bnd.osgi.Analyzer;
 import aQute.bnd.osgi.Builder;
 import aQute.bnd.osgi.Clazz.Def;
 import aQute.bnd.osgi.Constants;
+import aQute.bnd.osgi.Descriptors;
 import aQute.bnd.osgi.Descriptors.PackageRef;
 import aQute.bnd.osgi.Descriptors.TypeRef;
 import aQute.bnd.osgi.Domain;
@@ -1454,7 +1455,7 @@ public class bnd extends Processor {
 		}
 	}
 
-	 */
+
 	@Description("Show a cross references for all classes in a set of jars.")
 	public void _xref(xrefOptions options) throws IOException, Exception {
 		XRefCommand cx = new XRefCommand(this);
@@ -3354,6 +3355,7 @@ public class bnd extends Processor {
 	enum Alg {
 		SHA1,
 		MD5,
+		SHA256, SHA512,
 		TIMELESS
 	};
 
