@@ -330,8 +330,6 @@ public class ResourceUtils {
 		String name = method.getName()
 			.replace('_', '.');
 
-		String name = method.getName();
-
 		Object value = get0(name, attrs, directives, args);
 		if (value == null) {
 			value = get0(name.replace('_', '.'), attrs, directives, args);

@@ -62,18 +62,18 @@ public class ConvertDSXmlToAnnotations extends Processor {
 					if (backup) {
 						File bak = new File(sourcePath.getParentFile(), sourcePath.getName() + "~");
 						sourcePath.renameTo(bak);
-						trace("backup source %s", bak);
+						progress("backup source %s", bak);
 						bak = new File(xml.getParentFile(), xml.getName() + "~");
 						xml.renameTo(bak);
-						trace("backup %s", bak);
+						progress("backup %s", bak);
 					} else {
-						trace("no backup");
+						progress("no backup");
 					}
 					String source = cu.toString();
 					IO.store(source, sourcePath);
 					xml.delete();
 				} else {
-					trace("dryrun, not writing changed sources");
+					progress("dryrun, not writing changed sources");
 				}
 			} else {
 				error("Could not annotate");
@@ -85,12 +85,12 @@ public class ConvertDSXmlToAnnotations extends Processor {
 	private boolean addAnnotations(ComponentAnnotations ann, ClassOrInterfaceDeclaration target) {
 		boolean ok = true;
 		ok &= annotate(target, ann.component, "type " + ann.fqClassName);
-		trace("type %s -> %s", ann.fqClassName, ann.component);
+		progress("type %s -> %s", ann.fqClassName, ann.component);
 
 		for (Entry<String, ? extends Annotation> e : ann.fields.entrySet()) {
 			FieldDeclaration field = target.getFieldByName(e.getKey()).orElse(null);
 			if (field != null) {
-				trace("field %s.%s -> %s", ann.fqClassName, e.getKey(), e.getValue());
+				progress("field %s.%s -> %s", ann.fqClassName, e.getKey(), e.getValue());
 				ok &= annotate(field, e.getValue(), "field " + e.getKey());
 			} else {
 				error("no such field %s.%s", ann.fqClassName, e.getKey());
@@ -103,7 +103,7 @@ public class ConvertDSXmlToAnnotations extends Processor {
 
 			MethodDeclaration method = getMethod(target, name);
 			if (method != null) {
-				trace("method %s.%s -> %s", ann.fqClassName, e.getKey(), e.getValue());
+				progress("method %s.%s -> %s", ann.fqClassName, e.getKey(), e.getValue());
 				ok &= annotate(method, e.getValue(), "method " + e.getKey());
 			} else {
 				error("no such method %s.%s", ann.fqClassName,e.getKey());

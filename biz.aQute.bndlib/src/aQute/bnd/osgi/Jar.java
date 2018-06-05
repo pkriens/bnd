@@ -22,7 +22,7 @@ import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.EnumSet;
-import java.util.Enumeration;
+import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1041,7 +1041,7 @@ public class Jar implements Closeable {
 		}
 
 		for (Map.Entry<String,Resource> entry : getResources().entrySet()) {
-			File f = getFile(dir, entry.getKey());
+			File f = IO.getFile(dir, entry.getKey());
 			File fp = f.getParentFile();
 			if (fp.isFile()) {
 				throw new IOException("Huh");
@@ -1234,4 +1234,9 @@ public class Jar implements Closeable {
 		}
 		return temp.size();
 	}
+
+	public void setReporter(Reporter reporter) {
+		this.reporter = reporter;
+	}
+
 }

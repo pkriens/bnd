@@ -174,7 +174,7 @@ public class ConnectionSettings {
 				} else {
 					logger.info("external file");
 
-					File file = getParent() != null ? IO.getFile(key) : getParent().getFile(key);
+					File file = processor.findFile(key);
 					if (!file.isFile()) {
 						logger.info("external file does not exist {}", file);
 

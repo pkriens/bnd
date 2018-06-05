@@ -73,7 +73,8 @@ import aQute.lib.io.IO;
  * JUnit code runs. This is normally a separately started VM.
  */
 public class JUnitFramework implements AutoCloseable {
-	ExecutorService								executor		= Executors.newCachedThreadPool();
+	final ExecutorService								executor		= Executors.newCachedThreadPool();
+    final PromiseFactory                    promiseFactory  = new PromiseFactory(executor);
 	public final List<ServiceTracker< ? , ? >>	trackers		= new ArrayList<>();
 	public final Jar							bin_test;
 	public final Framework						framework;

@@ -18,11 +18,11 @@ public class Document implements IDocument {
 		setText(text);
 	}
 
-	@Override
 	public Document(Project p) throws IOException {
 		this(IO.collect(p.getFile("bnd.bnd")));
 	}
 
+	@Override
 	public int getNumberOfLines() {
 		return lineTracker.getNumberOfLines();
 	}

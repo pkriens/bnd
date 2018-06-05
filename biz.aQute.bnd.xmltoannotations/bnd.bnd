@@ -3,6 +3,7 @@
 	org.osgi.service.component.annotations, \
 	biz.aQute.bndlib;version=latest, \
 	aQute.libg;version=latest, \
+    osgi.annotation;version=latest,\
 	slf4j.api
 
 -conditionalpackage: aQute.lib*

@@ -36,7 +36,7 @@ public class Parameters implements Map<String, Attrs> {
 	}
 
 	public Parameters(Collection<String> keys) {
-		allowDuplicateAttributes = false;
+		this(false);
 		for (String key : keys) {
 			put(key, new Attrs());
 		}

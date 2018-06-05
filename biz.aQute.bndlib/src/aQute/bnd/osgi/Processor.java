@@ -1148,7 +1148,6 @@ public class Processor extends Domain implements Reporter, Registry, Constants, 
 							if (fileMustExist)
 								error("Included file %s %s", file,
 									(file.isDirectory() ? "is directory" : "does not exist"));
-								        (file.isDirectory() ? "is directory" : "does not exist"));
 						} catch (Exception e) {
 							if (fileMustExist)
 								exception(e, "Error in processing included URL: %s", value);
@@ -2822,4 +2821,18 @@ public class Processor extends Domain implements Reporter, Registry, Constants, 
 	public <T> T getInstructions(Class<T> type) {
 		return Syntax.getInstructions(this, type);
 	}
+
+	public File findFile(String key) throws IOException {
+		@SuppressWarnings("resource")
+		Processor rover = this;
+		while (rover != null) {
+			File f = rover.getFile(key);
+			if (f.isFile())
+				return f;
+
+			rover = rover.getParent();
+		}
+		return null;
+	}
+
 }
