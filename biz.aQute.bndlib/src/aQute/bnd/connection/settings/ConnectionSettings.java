@@ -167,11 +167,17 @@ public class ConnectionSettings {
 				}
 
 				key = Processor.removeDuplicateMarker(key);
+				logger.info("key={}, ignore={}", key, ignoreError);
+
 				if ("server".equals(key)) {
 					parseServer(entry.getValue());
 				} else {
-					File file = processor.getFile(key);
+					logger.info("external file");
+
+					File file = getParent() != null ? IO.getFile(key) : getParent().getFile(key);
 					if (!file.isFile()) {
+						logger.info("external file does not exist {}", file);
+
 						if (!ignoreError) {
 							SetLocation error = processor
 								.error("Specified -connection-settings: %s, but no such file or is directory", file);
@@ -205,7 +211,11 @@ public class ConnectionSettings {
 			if (server.id == null)
 				server.id = "*";
 
+			logger.info("pw/key server={}", server.id);
+
 			add(server);
+		} else {
+			logger.info("ignore because no pw or key server={}", server.id);
 		}
 	}
 
@@ -430,8 +440,9 @@ public class ConnectionSettings {
 		ServerDTO deflt = null;
 		for (ServerDTO serverDTO : settings.servers) {
 			serverDTO.trust = makeAbsolute(file.getParentFile(), serverDTO.trust);
-
+			logger.info("server = {}", toString(serverDTO));
 			if (MavenPasswordObfuscator.isObfuscatedPassword(serverDTO.password)) {
+				logger.info("use maven obfuscated password");
 				String masterPassphrase = mavenMasterPassphrase.get();
 				if (masterPassphrase != null) {
 					try {
@@ -448,9 +459,18 @@ public class ConnectionSettings {
 			}
 		}
 
-		if (deflt != null)
+		if (deflt != null) {
+			logger.info("default = {}", toString(deflt));
 			add(deflt);
+		}
 
+	}
+
+	private String toString(ServerDTO serverDTO) {
+		if (serverDTO == null || serverDTO.password == null) {
+			return "????";
+		}
+		return serverDTO.toString().replaceAll(Pattern.quote(serverDTO.password), "********");
 	}
 
 	final static String	IPNR_PART_S	= "([01]\\d\\d)|(2[0-4]\\d)|(25[0-5])";

@@ -3457,7 +3457,18 @@ public class Project extends Processor {
 	}
 
 	public String getResourcePath(String resource) {
-		for (String dir : Strings.split(getProperty(Constants.DEFAULT_PROP_RESOURCES_DIR))) {
+		String resourcePaths = getProperty(Constants.DEFAULT_PROP_RESOURCES_DIR);
+
+		if (resourcePaths == null) {
+
+			//
+			// Fall back to the old model
+			//
+
+			resourcePaths = getProperty(Constants.DEFAULT_PROP_SRC_DIR);
+		}
+
+		for (String dir : Strings.split(resourcePaths)) {
 			if (!dir.endsWith("/"))
 				dir = dir + "/";
 
@@ -3466,6 +3477,16 @@ public class Project extends Processor {
 			if (file.isFile())
 				return path;
 		}
+
+		//
+		// last resort
+		//
+
+		String path = "src/main/resources/" + resource;
+		File file = getFile(path);
+		if (file.isFile())
+			return path;
+
 		return null;
 	}
 

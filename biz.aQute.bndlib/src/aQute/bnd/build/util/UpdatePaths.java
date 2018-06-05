@@ -1,4 +1,4 @@
-package aQute.bnd.build;
+package aQute.bnd.build.util;
 
 import static aQute.bnd.build.model.clauses.VersionedClause.from;
 import static aQute.bnd.build.model.clauses.VersionedClause.replaceOrAdd;
@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Formatter;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -27,9 +28,14 @@ import org.osgi.resource.Requirement;
 import org.osgi.resource.Resource;
 import org.osgi.service.repository.Repository;
 
+import aQute.bnd.build.Project;
+import aQute.bnd.build.ProjectBuilder;
+import aQute.bnd.build.BuildFacet;
+import aQute.bnd.build.Workspace;
 import aQute.bnd.build.model.BndEditModel;
 import aQute.bnd.build.model.EE;
 import aQute.bnd.build.model.clauses.ExportedPackage;
+import aQute.bnd.build.model.clauses.ImportPattern;
 import aQute.bnd.build.model.clauses.VersionedClause;
 import aQute.bnd.header.Attrs;
 import aQute.bnd.header.Parameters;
@@ -40,6 +46,7 @@ import aQute.bnd.osgi.Descriptors.PackageRef;
 import aQute.bnd.osgi.Processor;
 import aQute.bnd.osgi.Verifier;
 import aQute.bnd.osgi.repository.AggregateRepository;
+import aQute.bnd.osgi.repository.ResourcesRepository;
 import aQute.bnd.osgi.resource.FilterBuilder;
 import aQute.bnd.osgi.resource.RequirementBuilder;
 import aQute.bnd.osgi.resource.ResourceUtils;
@@ -52,7 +59,15 @@ import aQute.lib.fileset.FileSet;
 import aQute.lib.io.IO;
 import aQute.lib.strings.Strings;
 
-public class UpdateBuildTestPath extends Processor {
+/**
+ * Update the build and test path of a project. This will analyze the sources in
+ * the project and try to find the dependencies in this workspace or in one of
+ * the repositories. Basically it sets the -buildpath and -setpath according to
+ * the other settings. Is original written to do PDE imports but can be used
+ * also to cleanup the -buildpath and -testpath
+ */
+
+public class UpdatePaths extends Processor {
 	Pattern										PACKAGE_STATEMENT_P	= Pattern
 	        .compile("package\\s+(?<package>" + Verifier.PACKAGE_PATTERN_S + ")");
 
@@ -62,6 +77,7 @@ public class UpdateBuildTestPath extends Processor {
 	private MultiMap<String,VersionedClause>	extensions			= new MultiMap<>();
 	private MultiMap<String,VersionedClause>	transitives			= new MultiMap<>();
 	private List<VersionedClause>				blacklist			= new ArrayList<>();
+	private ResourcesRepository					ignoredResources	= new ResourcesRepository();
 
 	static class Package implements Comparable<Package> {
 		String	packageName;
@@ -87,7 +103,7 @@ public class UpdateBuildTestPath extends Processor {
 		}
 	}
 
-	public UpdateBuildTestPath(Workspace workspace) throws Exception {
+	public UpdatePaths(Workspace workspace) throws Exception {
 		super(workspace);
 		addClose(analyzer);
 
@@ -120,6 +136,11 @@ public class UpdateBuildTestPath extends Processor {
 			this.blacklist.add(vc);
 		}
 
+		ignoredResources.addAll(getResourcesFromPath(workspace.getMergedParameters(Constants.BUILDPATH)));
+		ignoredResources.addAll(getResourcesFromPath(workspace.getMergedParameters(Constants.TESTPATH)));
+
+		System.out.println("Ignoring resources " + ignoredResources);
+
 		for (Project project : workspace.getAllProjects()) {
 			project.forceRefresh();
 			try (ProjectBuilder projectBuilder = project.getBuilder(null)) {
@@ -132,7 +153,18 @@ public class UpdateBuildTestPath extends Processor {
 					add(project, b.getExportPackage(), exportPackages);
 
 					Parameters privates = new Parameters();
-					for (File path : project.getSourcePath()) {
+					Collection<File> sourcePath = new ArrayList<>(project.getSourcePath());
+
+					Parameters languages = new Parameters(
+					        project.getProperty("pde.additional.languages", "src/main/groovy, src/test/groovy"));
+
+					for (String path : languages.keySet()) {
+						File file = project.getFile(path);
+						if (file != null && file.isDirectory())
+							sourcePath.add(file);
+					}
+
+					for (File path : sourcePath) {
 						FileSet sources = new FileSet(path, "**/*.java");
 						for (File source : sources.getFiles()) {
 							String content = IO.collect(source);
@@ -147,6 +179,45 @@ public class UpdateBuildTestPath extends Processor {
 				}
 			}
 		}
+	}
+
+	/*
+	 *  
+	 */
+	private Collection< ? extends Resource> getResourcesFromPath(Parameters path) {
+		Set<Resource> resources = new HashSet<>();
+
+		for (Map.Entry<String,Attrs> e : path.entrySet()) {
+			String bsn = e.getKey();
+			RequirementBuilder rb = new RequirementBuilder(BundleNamespace.BUNDLE_NAMESPACE);
+			FilterBuilder fb = new FilterBuilder();
+			fb = fb.eq(BundleNamespace.BUNDLE_NAMESPACE, bsn);
+			String versionRange = e.getValue().getVersion();
+			VersionRange range = getVersionRange(versionRange, "0");
+			fb = fb.and().in("version", range);
+			rb.addFilter(fb);
+			Requirement bundleRequirement = rb.synthetic();
+			Map<Requirement,Collection<Capability>> result = repo
+			        .findProviders(Collections.singleton(bundleRequirement));
+
+			resources.addAll(ResourceUtils.getResources(result.get(bundleRequirement)));
+		}
+		return resources;
+	}
+
+	/*
+	 * Unfortunately we're using OSGi's VersionRange in the VersionedClause. So
+	 * this is a helper to make the OSGi version usable.
+	 */
+	private VersionRange getVersionRange(String versionRange, String deflt) {
+		if (versionRange == null)
+			versionRange = deflt;
+
+		VersionRange range = VersionRange.valueOf(versionRange);
+		if (range.getRight() == null)
+			range = new VersionRange(range.getLeftType(), range.getLeft(),
+			        org.osgi.framework.Version.valueOf(Integer.toString(Integer.MAX_VALUE)), ')');
+		return range;
 	}
 
 	private void add(Project project, Parameters exportContents, MultiMap<String,Package> map) throws Exception {
@@ -172,10 +243,10 @@ public class UpdateBuildTestPath extends Processor {
 		}
 	}
 
-	public void updateProject(Project p, Set<String> missing) throws IOException {
-		SourceSets[] sets = SourceSets.getSourceSets(p);
-		SourceSets main = sets[0];
-		SourceSets test = sets[0];
+	public void updateProject(Project p, Set<String> missing) throws Exception {
+		BuildFacet[] sets = BuildFacet.getBuildFacets(p);
+		BuildFacet main = sets[0];
+		BuildFacet test = sets[1];
 
 		System.out.println("Update " + p);
 		EE ee = p.getEE();
@@ -196,6 +267,33 @@ public class UpdateBuildTestPath extends Processor {
 			Entry<String,Attrs> fragmentHost = p.getFragmentHost();
 			VersionedClause vc = new VersionedClause(fragmentHost.getKey(), fragmentHost.getValue());
 			addVersionedClause(buildPath, vc);
+
+			//
+			// We will import our host packages by default. However, since
+			// we're a fragment we should not have an Import-Package clause
+			// so we subtract the hosts packages
+			//
+
+			Project host = p.getWorkspace().getProject(fragmentHost.getKey());
+			if (host != null) {
+				ignorePackages.addAll(host.getAllSourcePackages());
+
+				List<ImportPattern> importPatterns = model.getImportPatterns();
+				if (importPatterns == null)
+					importPatterns = new ArrayList<>();
+
+				if (importPatterns.isEmpty()) {
+					ImportPattern wildcard = new ImportPattern("*", new Attrs());
+					importPatterns.add(wildcard);
+				}
+
+				for (String pack : host.getAllSourcePackages()) {
+					ImportPattern ip = new ImportPattern("!" + pack, new Attrs());
+					importPatterns.add(0, ip);
+				}
+				if (!importPatterns.isEmpty())
+					model.setImportPatterns(importPatterns);
+			}
 		}
 
 		if (hasRequiredBundles(p)) {
@@ -212,14 +310,45 @@ public class UpdateBuildTestPath extends Processor {
 			addVersionedClause(buildPath, vc);
 		}
 
-		Collection<File> sourceFiles = p.getAllSourceFiles(extensions.keySet().toArray(new String[] {}));
+		Set<File> sourceFiles = new HashSet<>(p.getAllSourceFiles(extensions.keySet().toArray(new String[] {})));
+		Set<File> testFiles = new FileSet(p.getTestSrc(), "**/*.java").getFiles();
+
+		Parameters languages = new Parameters(
+		        p.getProperty("pde.additional.languages", "src/main/groovy, src/test/groovy"));
+
+		for (Entry<String,Attrs> e : languages.entrySet()) {
+			String path = e.getKey();
+			File file = p.getFile(path);
+			if (file != null && file.isDirectory()) {
+				String ext = e.getValue().get("ext");
+				if (ext == null) {
+					int n = path.lastIndexOf("/");
+					ext = path.substring(n + 1);
+				}
+				Set<File> files = new FileSet(file, "**/*." + ext).getFiles();
+				if (path.contains("test"))
+					testFiles.addAll(files);
+				else
+					sourceFiles.addAll(files);
+			}
+		}
+
 		changes = doPath(p, model, buildPath, sourceFiles, ignorePackages, missing);
 
-		Set<File> testFiles = new FileSet(p.getTestSrc(), "**/*.java").getFiles();
 		changes |= doPath(p, model, testPath, testFiles, ignorePackages, missing);
 
 		changes |= addBundleclasspathResourcesToBuildpath(p, buildPath);
 
+		List<VersionedClause> copyBuildpath = new ArrayList<>(buildPath);
+
+		for (Iterator<VersionedClause> it = testPath.iterator(); it.hasNext();) {
+			VersionedClause vc = it.next();
+
+			if (VersionedClause.replaceOrAdd(copyBuildpath, vc) == false) {
+				it.remove();
+			}
+
+		}
 		if (changes) {
 			model.setBuildPath(buildPath);
 			model.setTestPath(testPath);
@@ -235,7 +364,7 @@ public class UpdateBuildTestPath extends Processor {
 	final static Pattern	PACKAGE_LINE_P		= Pattern.compile("^package\\s+" + Verifier.PACKAGE_PATTERN_S + "\\s*;",
 	        Pattern.MULTILINE);
 
-	private boolean doExportedPackages(SourceSets main, BndEditModel model) throws IOException {
+	private boolean doExportedPackages(BuildFacet main, BndEditModel model) throws IOException {
 		boolean changes = false;
 		List<ExportedPackage> exports = model.getExportedPackages();
 		if (exports != null) {
@@ -325,8 +454,13 @@ public class UpdateBuildTestPath extends Processor {
 		return p.getFragmentHost() != null;
 	}
 
-	private List<VersionedClause> getPath(Project p, List<VersionedClause> vcs, String name) {
+	private List<VersionedClause> getPath(Processor p, List<VersionedClause> vcs, String name) {
 		Parameters spec = p.getParameters(name);
+
+		return getPath(vcs, spec);
+	}
+
+	private List<VersionedClause> getPath(List<VersionedClause> vcs, Parameters spec) {
 		List<VersionedClause> path = from(spec);
 
 		if (vcs != null)
@@ -415,14 +549,11 @@ public class UpdateBuildTestPath extends Processor {
 
 	private boolean doRepositoryDependency(List<VersionedClause> path, String pack) {
 
-		RequirementBuilder rb = new RequirementBuilder(PackageNamespace.PACKAGE_NAMESPACE);
-		FilterBuilder fb = new FilterBuilder();
-		fb.eq(PackageNamespace.PACKAGE_NAMESPACE, pack);
-		rb.addFilter(fb);
-		Requirement packageRequirement = rb.synthetic();
-		Map<Requirement,Collection<Capability>> result = repo.findProviders(Collections.singleton(packageRequirement));
+		Set<Resource> resources = getResourceByPackage(ignoredResources, pack);
+		if (!resources.isEmpty())
+			return false;
 
-		Set<Resource> resources = ResourceUtils.getResources(result.get(packageRequirement));
+		resources = getResourceByPackage(this.repo, pack);
 		if (!resources.isEmpty()) {
 			List<VersionedClause> set = new ArrayList<VersionedClause>();
 			nextResource: for (Resource resource : resources) {
@@ -478,6 +609,18 @@ public class UpdateBuildTestPath extends Processor {
 		return false;
 	}
 
+	private Set<Resource> getResourceByPackage(Repository repo, String pack) {
+		RequirementBuilder rb = new RequirementBuilder(PackageNamespace.PACKAGE_NAMESPACE);
+		FilterBuilder fb = new FilterBuilder();
+		fb.eq(PackageNamespace.PACKAGE_NAMESPACE, pack);
+		rb.addFilter(fb);
+		Requirement packageRequirement = rb.synthetic();
+		Map<Requirement,Collection<Capability>> result = repo.findProviders(Collections.singleton(packageRequirement));
+
+		Set<Resource> resources = ResourceUtils.getResources(result.get(packageRequirement));
+		return resources;
+	}
+
 	private boolean isInRange(VersionedClause target, VersionedClause blacklist) {
 		try {
 			if (target.getName().equals(blacklist.getName())) {
@@ -510,6 +653,11 @@ public class UpdateBuildTestPath extends Processor {
 		Attrs attrs = new Attrs();
 		attrs.put("version", "latest");
 		VersionedClause vc = new VersionedClause(package2.project.getName(), attrs);
+
+		for (VersionedClause black : blacklist) {
+			if (black.getName().equals(package2.project.getName()))
+				return false;
+		}
 
 		replaceOrAdd(path, vc);
 		changed = true;

@@ -1188,16 +1188,18 @@ public class Jar implements Closeable {
 			int index = from.lastIndexOf('/');
 			String suffix = from.substring(index + 1);
 			isWildcard = suffix.contains("*");
-			if (isWildcard && !to.endsWith("/") && reporter != null) {
+			if (isWildcard && !to.endsWith("/")) {
 
 				int index2 = to.lastIndexOf('/');
 				String toName = to.substring(index2 + 1);
 				if (toName.equals(suffix)) {
 					to = to.substring(0, index2);
 				} else {
-					reporter.error(
-							"If wildcards are used to copy resources then the to must be a directory, it is a file: %s->%s",
-							from, to);
+					if (reporter != null) {
+						reporter.error(
+						        "If wildcards are used to copy resources then the to must be a directory, it is a file: %s->%s",
+						        from, to);
+					}
 				}
 			}
 

@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.osgi.resource.Capability;
+import org.osgi.resource.Namespace;
 import org.osgi.resource.Requirement;
 import org.osgi.resource.Resource;
 import org.osgi.service.repository.Repository;
@@ -31,9 +32,12 @@ import aQute.bnd.main.bnd.ProjectWorkspaceOptions;
 import aQute.bnd.main.bnd.projectOptions;
 import aQute.bnd.osgi.Domain;
 import aQute.bnd.osgi.Processor;
+import aQute.bnd.osgi.repository.AggregateRepository;
 import aQute.bnd.osgi.resource.FilterParser;
 import aQute.bnd.osgi.resource.FilterParser.Expression;
+import aQute.bnd.osgi.resource.RequirementBuilder;
 import aQute.bnd.osgi.resource.ResourceBuilder;
+import aQute.bnd.osgi.resource.ResourceUtils;
 import aQute.bnd.osgi.resource.ResourceUtils.IdentityCapability;
 import aQute.lib.getopt.Arguments;
 import aQute.lib.getopt.Description;
@@ -85,10 +89,19 @@ public class ResolveCommand extends Processor {
 
 	}
 
+	@Arguments(arg = {
+			"bsn", "[version]"
+	})
+	@Description("Query the repositories for a resource by bsn and optional version")
 	interface QueryOptions extends projectOptions {
+		@Description("Select the workspace")
 		String workspace();
+
+		@Description("Arbitrary requirement instead of bsn [version]. Use namespace [filter]")
+		boolean requirement();
 	}
 
+	@Description("Query the repositories for a resource by bsn and optional version")
 	public void _query(QueryOptions options) throws Exception {
 		List<String> args = options._arguments();
 		String bsn = args.remove(0);
@@ -96,37 +109,69 @@ public class ResolveCommand extends Processor {
 		if (!args.isEmpty())
 			version = args.remove(0);
 
-		ProjectResolver pr = new ProjectResolver(bnd.getProject(options.project()));
+		Project project = bnd.getProject(options.project());
+		if (project == null) {
+			error("Need to be in a project directory");
+			return;
+		}
+
+		AggregateRepository repo = new AggregateRepository(project.getWorkspace().getPlugins(Repository.class));
+
+		ProjectResolver pr = new ProjectResolver(project);
 		addClose(pr);
 
-		IdentityCapability resource = pr.getResource(bsn, version);
+		Requirement requirement;
+		if (options.requirement()) {
+			requirement = RequirementBuilder.createRequirement(bsn, version).buildSyntheticRequirement();
+		} else {
+			requirement = RequirementBuilder.createBundleRequirement(bsn, version).buildSyntheticRequirement();
+		}
 
-		bnd.out.printf("%-30s %-20s %s\n", resource.osgi_identity(), resource.version(), resource.description(""));
-		Resource r = resource.getResource();
-		FilterParser p = new FilterParser();
+		Collection<Resource> resources = ResourceUtils.getResources(repo.findProviders(requirement));
+		
+		for (Resource resource : resources) {
+			IdentityCapability identity = ResourceUtils.getIdentityCapability(resource);
 
-		if (r != null) {
-			List<Requirement> requirements = resource.getResource()
-				.getRequirements(null);
-			if (!requirements.isEmpty()) {
-				bnd.out.println("Requirements:");
-				for (Requirement req : requirements) {
-					Expression parse = p.parse(req);
-					bnd.out.printf("  %-20s %s\n", req.getNamespace(), parse);
+			bnd.out.printf("%-30s %-20s %s\n", identity.osgi_identity(), identity.version(), identity.description(""));
+			Resource r = identity.getResource();
+
+			FilterParser p = new FilterParser();
+
+			if (r != null) {
+				List<Requirement> requirements = identity.getResource().getRequirements(null);
+				if (!requirements.isEmpty()) {
+					bnd.out.println("Requirements:");
+					for (Requirement req : requirements) {
+						Expression parse = p.parse(req);
+						Collection<Capability> caps = repo.findProviders(req);
+						boolean missing = caps.isEmpty();
+						boolean optional = Namespace.RESOLUTION_OPTIONAL
+								.equals(req.getDirectives().get(Namespace.REQUIREMENT_RESOLUTION_DIRECTIVE));
+
+						String msg = "";
+						if (missing) {
+							if (optional)
+								msg += "missing optional";
+							else
+								msg += "missing MANDATORY";
+						} else
+							msg = caps.size() + "";
+
+						bnd.out.printf("  %-20s %-20s %s\n", msg, req.getNamespace(), parse);
+					}
 				}
-			}
-			List<Capability> capabilities = resource.getResource()
-				.getCapabilities(null);
-			if (!capabilities.isEmpty()) {
-				bnd.out.println("Capabilities:");
-				for (Capability cap : capabilities) {
-					Map<String, Object> attrs = new HashMap<>(cap.getAttributes());
-					Object id = attrs.remove(cap.getNamespace());
-					Object vv = attrs.remove("version");
-					if (vv == null)
-						vv = attrs.remove("bundle-version");
-					bnd.out.printf("  %-20s %-40s %-20s attrs=%s dirs=%s\n", cap.getNamespace(), id, vv, attrs,
-						cap.getDirectives());
+				List<Capability> capabilities = identity.getResource().getCapabilities(null);
+				if (!capabilities.isEmpty()) {
+					bnd.out.println("Capabilities:");
+					for (Capability cap : capabilities) {
+						Map<String,Object> attrs = new HashMap<String,Object>(cap.getAttributes());
+						Object id = attrs.remove(cap.getNamespace());
+						Object vv = attrs.remove("version");
+						if (vv == null)
+							vv = attrs.remove("bundle-version");
+						bnd.out.printf("  %-20s %-40s %-20s attrs=%s dirs=%s\n", cap.getNamespace(), id, vv, attrs,
+								cap.getDirectives());
+					}
 				}
 			}
 		}

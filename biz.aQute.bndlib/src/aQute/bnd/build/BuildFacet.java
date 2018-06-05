@@ -1,18 +1,26 @@
 package aQute.bnd.build;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import aQute.bnd.osgi.Constants;
 import aQute.lib.io.IO;
 import aQute.lib.strings.Strings;
 
-public class SourceSets {
+/**
+ * A Build Facet is a separate part of a build. Maven has 2 build facets, called
+ * 'main' and 'test'. One could extend this with for example 'generate'. A facet
+ * groups a number of _source sets_.
+ */
+public class BuildFacet {
 	public final static String	JAVA		= "java";
 	public final static String	GROOVY		= "groovy";
 	public final static String	RESOURCES	= "resources";
@@ -21,12 +29,12 @@ public class SourceSets {
 
 	public final String			name;
 	public final File			home;
-	final Map<String,SourceSet>	sets		= new HashMap<>();
+	final Map<String,SourceSet>	sourceSets	= new HashMap<>();
 
 	public class SourceSet {
 		public final File		output;
 		public final String		name;
-		final Map<String,File>	directories	= new HashMap<>();
+		final Map<String,File>	inputs	= new HashMap<>();
 
 		SourceSet(String name, File output, List<String> src) {
 
@@ -38,12 +46,12 @@ public class SourceSets {
 					s = s + "/";
 
 				File dir = IO.getFile(home, s);
-				directories.put(s, dir);
+				inputs.put(s, dir);
 			}
 		}
 
 		public Optional<File> resolve(String resource) {
-			return directories.//
+			return inputs.//
 			        values().//
 			        stream().//
 			        map(d -> IO.getFile(d, resource)).//
@@ -52,7 +60,7 @@ public class SourceSets {
 		}
 
 		public Optional<String> resolve(Collection<String> content, String resource) {
-			return directories.//
+			return inputs.//
 			        keySet().//
 			        stream().//
 			        map(p -> p + resource).//
@@ -61,11 +69,11 @@ public class SourceSets {
 		}
 
 		public List<File> getDirectories() {
-			return new ArrayList<>(directories.values());
+			return new ArrayList<>(inputs.values());
 		}
 
 		public List<String> getRelativePaths() {
-			ArrayList<String> list = new ArrayList<>(directories.keySet());
+			ArrayList<String> list = new ArrayList<>(inputs.keySet());
 			return list;
 		}
 
@@ -86,7 +94,7 @@ public class SourceSets {
 		}
 
 		public Optional<File> getFile(String relativePath) {
-			return directories.//
+			return inputs.//
 			        values().//
 			        stream().//
 			        map(dir -> IO.getFile(dir, relativePath)).//
@@ -94,19 +102,33 @@ public class SourceSets {
 			        findFirst();
 
 		}
+
+		public void mkdirs(String ifEmpty) throws IOException {
+			for (File dir : inputs.values()) {
+				if (!dir.isDirectory()) {
+					dir.mkdirs();
+				}
+				if (ifEmpty != null && dir.list().length == 0) {
+					File scm = IO.getFile(dir, ifEmpty);
+					scm.getParentFile().mkdirs();
+					IO.store("", scm);
+				}
+			}
+
+		}
 	}
 
-	SourceSets(File home, String name, SourceSet... sets) {
+	BuildFacet(File home, String name, SourceSet... sets) {
 		this.home = home;
 		this.name = name;
 		for (SourceSet set : sets) {
-			this.sets.put(set.name, set);
+			this.sourceSets.put(set.name, set);
 		}
 	}
 
 	private void add(String name, File output, List<String> paths) {
 		SourceSet sourceSet = new SourceSet(name, output, paths);
-		sets.put(name, sourceSet);
+		sourceSets.put(name, sourceSet);
 	}
 
 	public SourceSet java() {
@@ -118,16 +140,24 @@ public class SourceSets {
 	}
 
 	public SourceSet path(String name) {
-		return sets.get(name);
+		return sourceSets.get(name);
 	}
 
-	public static SourceSets[] getSourceSets(Project project) {
+	public Set<SourceSet> getSourceSets() {
+		return new HashSet<>(sourceSets.values());
+	}
+
+	public Optional<SourceSet> getSourceSet(String name) {
+		return Optional.ofNullable(sourceSets.get(name));
+	}
+
+	public static BuildFacet[] getBuildFacets(Project project) {
 
 		List<String> src = Strings.split(project.getProperty(Constants.DEFAULT_PROP_SRC_DIR));
 		List<String> resources = Strings.split(project.getProperty(Constants.DEFAULT_PROP_RESOURCES_DIR));
 		String bin = project.getProperty(Constants.DEFAULT_PROP_BIN_DIR);
 
-		SourceSets main = new SourceSets(project.getBase(), MAIN);
+		BuildFacet main = new BuildFacet(project.getBase(), MAIN);
 		main.add(JAVA, project.getFile(bin), src);
 		main.add(RESOURCES, project.getFile(bin), resources);
 
@@ -135,13 +165,18 @@ public class SourceSets {
 		List<String> testresources = Strings.split(project.getProperty(Constants.DEFAULT_PROP_TESTRESOURCES_DIR));
 		String bin_test = project.getProperty(Constants.DEFAULT_PROP_TESTBIN_DIR);
 
-		SourceSets test = new SourceSets(project.getBase(), TEST);
+		BuildFacet test = new BuildFacet(project.getBase(), TEST);
 		test.add(JAVA, project.getFile(bin_test), testsrc);
 		test.add(RESOURCES, project.getFile(bin_test), resources);
 
-		return new SourceSets[] {
+		return new BuildFacet[] {
 		        main, test
 		};
 	}
 
+	public void mkdirs(String ifEmpty) throws IOException {
+		for (SourceSet set : getSourceSets()) {
+			set.mkdirs(ifEmpty);
+		}
+	}
 }

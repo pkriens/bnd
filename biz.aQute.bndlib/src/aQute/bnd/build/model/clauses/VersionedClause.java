@@ -5,6 +5,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.osgi.framework.Constants;
 
@@ -23,6 +24,16 @@ public class VersionedClause extends HeaderClause implements Cloneable {
 				return n;
 
 			try {
+				if (Objects.equals(o1.getVersionRange(), o2.getVersionRange()))
+					return 0;
+
+				if ("latest".equals(o1.getVersionRange())) {
+					return 1;
+				}
+				if ("latest".equals(o2.getVersionRange())) {
+					return -1;
+				}
+
 				VersionRange v1 = new VersionRange(o1.getVersionRange());
 				VersionRange v2 = new VersionRange(o2.getVersionRange());
 				return v1.getLow().compareTo(v2.getLow());
@@ -84,6 +95,13 @@ public class VersionedClause extends HeaderClause implements Cloneable {
 			VersionedClause previous = path.get(i);
 			if (previous.getName().equals(next.getName())) {
 				try {
+					if ("latest".equals(previous.getVersionRange())) {
+						return false;
+					}
+					if ("latest".equals(next.getVersionRange())) {
+						path.set(i, next);
+						return true;
+					}
 					VersionRange previousVersionRange = VersionRange.parseVersionRange(previous.getVersionRange());
 					VersionRange nextVersionRange = VersionRange.parseVersionRange(previous.getVersionRange());
 					aQute.bnd.version.Version previousFloor = previousVersionRange.getLow();
@@ -133,4 +151,5 @@ public class VersionedClause extends HeaderClause implements Cloneable {
 		}
 		return list;
 	}
+
 }

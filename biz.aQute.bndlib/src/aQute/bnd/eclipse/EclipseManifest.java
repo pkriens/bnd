@@ -23,9 +23,15 @@ public class EclipseManifest {
 			"Built-By", "Created-By", "Bundle-RequiredExecutionEnvironment", "Build-Jdk", "Bundle-ManifestVersion",
 			"ManifestVersion", "Archiver-Version", Constants.BUNDLE_CLASSPATH, Constants.EXPORT_PACKAGE,
 			"Manifest-Version", Constants.BUNDLE_SYMBOLICNAME, Constants.SERVICE_COMPONENT, Constants.IMPORT_PACKAGE,
-			"Originally-Created-By", Constants.REQUIRE_BUNDLE
+	        "Originally-Created-By", Constants.PRIVATE_PACKAGE, Constants.IGNORE_PACKAGE, Constants.REQUIRE_BUNDLE
 	};
 
+	public static String		COMMENT_HEADERS[]	= {
+	        "Built-By", "Created-By", "Bundle-RequiredExecutionEnvironment", "Build-Jdk", "Bundle-ManifestVersion",
+	        "ManifestVersion", "Archiver-Version", Constants.BUNDLE_CLASSPATH, Constants.EXPORT_PACKAGE,
+	        "Manifest-Version", Constants.BUNDLE_SYMBOLICNAME, Constants.SERVICE_COMPONENT, Constants.IMPORT_PACKAGE,
+	        "Originally-Created-By", Constants.PRIVATE_PACKAGE, Constants.IGNORE_PACKAGE
+	};
 	static String[]				PARAMETER_HEADERS	= {
 			Constants.BUNDLE_ACTIVATIONPOLICY, Constants.BUNDLE_ACTIVATOR, Constants.BUNDLE_CATEGORY,
 			Constants.BUNDLE_DEVELOPERS, Constants.BUNDLE_LICENSE, Constants.BUNDLE_LOCALIZATION,
@@ -76,7 +82,10 @@ public class EclipseManifest {
 				headers.add(key);
 
 			for (String header : REMOVE_HEADERS) {
-				headers.remove(header);
+				if (headers.remove(header)) {
+					// model.format(HEADER_FORMAT, "#" + header,
+					// manifest.get(header));
+				}
 			}
 
 			for (String name : PARAMETER_HEADERS) {
@@ -91,8 +100,9 @@ public class EclipseManifest {
 			}
 
 			Parameters requireBundle = manifest.getRequireBundle();
-			if (requireBundle == null) {
+			if (requireBundle != null && !requireBundle.isEmpty()) {
 				model.format(HEADER_FORMAT, "# Require-Bundle", requireBundle);
+				headers.remove(Constants.REQUIRE_BUNDLE);
 			}
 
 			Parameters exports = manifest.getExportContents();

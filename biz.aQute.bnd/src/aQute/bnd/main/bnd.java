@@ -53,6 +53,7 @@ import java.util.jar.Attributes.Name;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.zip.ZipException;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -70,6 +71,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.w3c.dom.Document;
 
+import aQute.bnd.build.BuildFacet;
+import aQute.bnd.build.BuildFacet.SourceSet;
 import aQute.bnd.build.Container;
 import aQute.bnd.build.Project;
 import aQute.bnd.build.ProjectBuilder;
@@ -139,8 +142,11 @@ import aQute.lib.strings.Strings;
 import aQute.lib.tag.Tag;
 import aQute.lib.utf8properties.UTF8Properties;
 import aQute.libg.classdump.ClassDumper;
+import aQute.libg.command.Command;
 import aQute.libg.cryptography.MD5;
 import aQute.libg.cryptography.SHA1;
+import aQute.libg.cryptography.SHA256;
+import aQute.libg.cryptography.SHA512;
 import aQute.libg.forker.Forker;
 import aQute.libg.generics.Create;
 import aQute.libg.glob.Glob;
@@ -149,6 +155,7 @@ import aQute.libg.reporter.ReporterAdapter;
 import aQute.libg.reporter.ReporterMessages;
 import aQute.libg.sed.Sed;
 import aQute.service.reporter.Reporter;
+import biz.aQute.bnd.xmltoannotations.ConvertDSXmlToAnnotations;
 
 /**
  * Utility to make bundles. @version $Revision: 1.14 $
@@ -159,7 +166,8 @@ public class bnd extends Processor {
 		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
 		System.setProperty("org.slf4j.simpleLogger.showShortLogName ", "true");
 	}
-	private final static Logger					logger					= LoggerFactory.getLogger(bnd.class);
+	private Logger								logger;
+
 	static Pattern								ASSIGNMENT				= Pattern.compile(																//
 			"([^=]+) (= ( ?: (\"|'|) (.+) \\3 )? ) ?", Pattern.COMMENTS);
 	Settings									settings				= new Settings();
@@ -168,7 +176,7 @@ public class bnd extends Processor {
 	Justif										justif					= new Justif(80, 40, 42, 70);
 	BndMessages									messages				= ReporterMessages.base(this,
 			BndMessages.class);
-	private Workspace							ws;
+	private Workspace							workspace;
 	private char[]								password;
 	private Workspace							workspace;
 
@@ -177,7 +185,7 @@ public class bnd extends Processor {
 																				return false;
 																			};
 																		};
-	private static final String					DEFAULT_LOG_LEVEL_KEY	= "org.slf4j.simpleLogger.defaultLogLevel";
+	private static final String					DEFAULT_LOG_LEVEL_KEY	= org.slf4j.impl.SimpleLogger.DEFAULT_LOG_LEVEL_KEY;
 
 	static Pattern								JARCOMMANDS				= Pattern
 			.compile("(cv?0?(m|M)?f?)|(uv?0?M?f?)|(xv?f?)|(tv?f?)|(i)");
@@ -244,7 +252,7 @@ public class bnd extends Processor {
 		@Description("Use as base directory")
 		String base();
 
-		@Description("Trace progress")
+		@Description("Trace command progress")
 		boolean trace();
 
 		@Description("Show log debug output")
@@ -268,6 +276,7 @@ public class bnd extends Processor {
 	public bnd() {}
 
 	public static void main(String args[]) throws Exception {
+
 		Workspace.setDriver(Constants.BNDDRIVER_BND);
 		Workspace.addGestalt(Constants.GESTALT_SHELL, null);
 		Workspace.addGestalt(Constants.GESTALT_INTERACTIVE, null);
@@ -467,8 +476,8 @@ public class bnd extends Processor {
 		}
 		out.flush();
 		err.flush();
-		if (ws != null)
-			getInfo(ws);
+		if (workspace != null)
+			getInfo(workspace);
 
 		if (!check(options.ignore())) {
 			err.flush();
@@ -1349,7 +1358,10 @@ public class bnd extends Processor {
 	 */
 	@Description("Show macro value")
 	public void _macro(macroOptions options) throws Exception {
-		Project project = getProject(options.project());
+		Processor project = getProject(options.project());
+
+		if (project == null)
+			project = workspace;
 
 		if (project == null) {
 			messages.NoProject();
@@ -1461,7 +1473,7 @@ public class bnd extends Processor {
 		List<String> args = options._arguments();
 		if (args.size() > 0) {
 			String cmd = args.remove(0);
-			PDECommand pdeCommand = new PDECommand(this);
+			EclipseCommand pdeCommand = new EclipseCommand(this);
 
 			options._command().execute(pdeCommand, cmd, args);
 			getInfo(pdeCommand);
@@ -2026,9 +2038,9 @@ public class bnd extends Processor {
 		if ((options & IMPEXP) != 0) {
 			out.println("[IMPEXP]");
 			Manifest m = jar.getManifest();
-			Domain domain = Domain.domain(m);
 
 			if (m != null) {
+				Domain domain = Domain.domain(m);
 				Parameters imports = domain.getImportPackage();
 				Parameters exports = domain.getExportPackage();
 				for (String p : exports.keySet()) {
@@ -2735,12 +2747,12 @@ public class bnd extends Processor {
 		if (workspaceDir == null) {
 			workspaceDir = getBase();
 		}
-		ws = Workspace.findWorkspace(workspaceDir);
-		if (ws == null)
+		workspace = Workspace.findWorkspace(workspaceDir);
+		if (workspace == null)
 			return null;
 
-		ws.use(this);
-		return ws;
+		workspace.use(this);
+		return workspace;
 	}
 
 	public Project getProject(String where) throws Exception {
@@ -2762,8 +2774,8 @@ public class bnd extends Processor {
 
 			File projectDir = f.getParentFile();
 			File workspaceDir = projectDir.getParentFile();
-			ws = Workspace.findWorkspace(workspaceDir);
-			Project project = ws.getProject(projectDir.getName());
+			workspace = Workspace.findWorkspace(workspaceDir);
+			Project project = workspace.getProject(projectDir.getName());
 			if (project.isValid()) {
 				project.use(this);
 				return project;
@@ -2786,12 +2798,14 @@ public class bnd extends Processor {
 				ws = Workspace.createStandaloneWorkspace(new Processor(), IO.work.toURI());
 		} else {
 			File f = getFile(where);
-			ws = Workspace.findWorkspace(f);
-			if (f.isFile() && f.getName()
-				.endsWith(Constants.DEFAULT_BNDRUN_EXTENSION)) {
-				Run run = Run.createRun(ws, f);
+			if (f.isFile() && f.getName().endsWith(Run.DEFAULT_BNDRUN_EXTENSION)) {
+				trace("Using bndrun file %s", f);
+				Run run = Run.createRun(null, f);
 				ws = run.getWorkspace();
+			} else {
+				ws = Workspace.findWorkspace(f);
 			}
+			trace("Workspace %s %s", ws, ws.getProperty("-standalone"));
 		}
 		return ws;
 	}
@@ -3395,6 +3409,12 @@ public class bnd extends Processor {
 							digest = SHA1.digest(f)
 								.digest();
 							break;
+						case SHA256 :
+							digest = SHA256.digest(f).digest();
+							break;
+						case SHA512 :
+							digest = SHA512.digest(f).digest();
+							break;
 						case MD5 :
 							digest = MD5.digest(f)
 								.digest();
@@ -3947,6 +3967,50 @@ public class bnd extends Processor {
 	}
 
 	/**
+	 * Show the dependencies of all projects
+	 */
+
+	@Description("Show the used workspace dependencies ")
+	@Arguments(arg = "instruction...")
+	interface DependencyOptions extends projectOptions {
+		@Description("Show the number of projects using that dependency")
+		boolean count();
+	}
+
+	@Description("Show the used workspace dependencies ")
+	public void _dependencies(DependencyOptions opts) throws Exception {
+		Workspace ws = getWorkspace(opts.project());
+
+		if (ws == null) {
+			error("Can't find a workspace");
+			return;
+		}
+		Instructions instructions = new Instructions(opts._arguments());
+
+		MultiMap<String,Attrs> dependencies = new MultiMap<>();
+		int n = 0;
+		for (Project p : ws.getAllProjects()) {
+			if (instructions.matches(p.getName())) {
+				Parameters parms = p.getParameters(Constants.BUILDPATH);
+				for (Map.Entry<String,Attrs> e : parms.entrySet()) {
+					dependencies.add(e.getKey(), e.getValue());
+				}
+			}
+		}
+		Justif justif = new Justif(80, new int[] {
+				40, 48, 56
+		});
+		Formatter f = justif.formatter();
+
+		for (Map.Entry<String,List<Attrs>> e : dependencies.entrySet()) {
+			f.format("%s \t1%s\n", e.getKey(), e.getValue().size());
+		}
+
+		out.println(justif.wrap());
+
+	}
+
+	/**
 	 * start a local framework
 	 */
 
@@ -4121,12 +4185,12 @@ public class bnd extends Processor {
 		if ("workspace".equals(what)) {
 			for (String pname : args) {
 				File wsdir = getFile(pname);
-				ws = Workspace.createWorkspace(wsdir);
-				if (ws == null) {
+				workspace = Workspace.createWorkspace(wsdir);
+				if (workspace == null) {
 					error("Could not create workspace");
 				}
 			}
-			getInfo(ws);
+			getInfo(workspace);
 			return;
 		}
 
@@ -4511,7 +4575,7 @@ public class bnd extends Processor {
 
 		File outfile = getFile(outpath);
 		outfile.getParentFile().mkdirs();
-		bnd.logger.debug("out %s", outfile);
+		logger.debug("out %s", outfile);
 
 		String classes = options.classes();
 		if (classes == null) {
@@ -4523,7 +4587,7 @@ public class bnd extends Processor {
 
 		for (String arg : args) {
 			try {
-				bnd.logger.debug("storing %s", arg);
+				logger.debug("storing %s", arg);
 				File file = getFile(arg);
 				if (!file.isFile()) {
 					error("Cannot open file %s", file);
@@ -4544,12 +4608,12 @@ public class bnd extends Processor {
 			if (path.isEmpty() || path.startsWith("#"))
 				return;
 
-			bnd.logger.info("line {}", path);
+			logger.info("line {}", path);
 			boolean match = false;
 			for (Map.Entry<String,Resource> e : store.getResources().entrySet()) {
 				if (e.getKey().startsWith(path)) {
 					match = true;
-					bnd.logger.info("# found %s", path);
+					logger.info("# found %s", path);
 					out.putResource(e.getKey(), e.getValue());
 				}
 			}
@@ -4642,14 +4706,14 @@ public class bnd extends Processor {
 		List<org.osgi.resource.Resource> resources = new ArrayList<>();
 
 		for (String fileset : options._arguments()) {
-			trace("file set %s %s %s", fileset, root, uri);
+			logger.trace("file set {} {} {}", fileset, root, uri);
 			FileSet fs = new FileSet(root, fileset);
 			for (File file : fs.getFiles()) {
 				try {
 					URI actual = file.toURI();
 					String path = root.toURI().relativize(actual).getPath();
 					actual = uri.resolve(path);
-					trace("file %s %s", actual, path);
+					logger.trace("file {} {}", actual, path);
 					ResourceBuilder rb = new ResourceBuilder();
 					rb.addFile(file, actual);
 					org.osgi.resource.Resource resource = rb.build();
@@ -4741,18 +4805,149 @@ public class bnd extends Processor {
 		}
 	}
 
-	/**
-	 * Index command
-	 *
-	 * @throws Exception
-	 */
+	@Arguments(arg = {
+			"command", "args..."
+	})
+	@Description("Add the current buildpath and testpath to a command. The commandline will be 'command' -cp 'path' args...")
+	interface ShellCommand extends projectOptions {
+		@Description("The classpath option, default -cp")
+		String cp(String deflt);
 
-	@Description("Index bundles from the local file system")
-	public void _index(IndexCommand.indexOptions options) throws Exception {
-		IndexCommand ic = new IndexCommand(this);
-		ic.use(this);
-		ic._index(options);
-		ic.close();
+		@Description("Just print the command line instead of executing it. ")
+		boolean noexec();
+
+	}
+
+	@Description("Add the current buildpath and testpath to a command")
+	public void _cp(ShellCommand options) throws Exception {
+		Project p = getProject(options.project());
+		if (p == null) {
+			error("Not in a project");
+			return;
+		}
+
+		List<String> args = options._arguments();
+
+		List<File> dirs = new ArrayList<>();
+		dirs.add(p.getOutput());
+		dirs.addAll(p.getBuildpath().stream().map(c -> c.getFile().getAbsoluteFile()).collect(Collectors.toList()));
+		dirs.addAll(p.getTestpath().stream().map(c -> c.getFile().getAbsoluteFile()).collect(Collectors.toList()));
+
+		Command command = new Command();
+		String name = args.remove(0);
+		String cp = "-cp";
+
+		switch (name) {
+			case "jshell" :
+				cp = "--class-path";
+				break;
+		}
+
+		command.add(name);
+		command.add(options.cp("-cp"));
+
+		String path = //
+				dirs.stream().map(f -> f.getAbsolutePath()).collect(Collectors.joining(File.pathSeparator));
+		command.add(path);
+		command.addAll(args);
+
+		System.out.println(command);
+		if (options.noexec())
+			return;
+
+		int execute = command.execute(System.in, System.out, System.err);
+		if (execute != 0)
+			error("Failed result %s", execute);
+	}
+
+	/**
+	 * Take a DS XML file and convert them to attributes on a source file.
+	 */
+	@Arguments(arg = "[target..]")
+	interface DSAnnotationsOptions extends projectOptions, workspaceOptions {
+		@Description("Source directories")
+		String[] sources();
+
+		@Description("Update the source files")
+		boolean update();
+
+		@Description("Make a backup before rewriting a Java source file")
+		boolean backup();
+	}
+
+	public void _dsannotate(DSAnnotationsOptions options) throws Exception {
+		trace("dsannotate %s", options);
+		List<File> sources = new ArrayList<>();
+		if (options.sources() != null) {
+
+			for (String dir : options.sources()) {
+				trace("Source dir %s", dir);
+
+				File file = getFile(dir);
+				if (!file.isDirectory()) {
+					warning("Source directory is not a directory %s", file);
+				}
+				sources.add(file);
+			}
+		}
+		try (ConvertDSXmlToAnnotations converter = new ConvertDSXmlToAnnotations(sources)) {
+			converter.getSettings(this);
+
+			converter.setDryRun(!options.update());
+			converter.setBackup(options.backup());
+
+			if (options._arguments().isEmpty()) {
+				trace("No args, going for project or workspace");
+
+				Workspace ws = null;
+				Project p = getProject(options.project());
+				if (p != null) {
+					trace("Found project %s", p);
+					annotateProject(sources, converter, p);
+				} else {
+					ws = getWorkspace(options.workspace());
+					if (ws == null) {
+						trace("Found no project, no workspace");
+						error("No project, no workspace, no target dir/files ... Do not know what to do");
+					} else {
+						trace("Found workspace");
+
+						for (Project project : ws.getAllProjects()) {
+							annotateProject(sources, converter, project);
+							this.getInfo(converter, project + ": ");
+						}
+					}
+				}
+
+			} else {
+				trace("Using arguments");
+
+				for (String target : options._arguments()) {
+					trace("Fileset %s", target);
+					FileSet fileset = new FileSet(getBase(), target);
+					for (File xml : fileset.getFiles()) {
+						trace("File %s", xml);
+						converter.annotate(xml);
+					}
+				}
+			}
+			this.getInfo(converter);
+		}
+	}
+
+	private void annotateProject(List<File> sources, ConvertDSXmlToAnnotations converter, Project p) throws Exception {
+		trace("Annotate project %s", p);
+		sources.addAll(p.getSourcePath());
+		SourceSet main = BuildFacet.getBuildFacets(p)[0].resources();
+
+		for (File dir : main.getDirectories()) {
+			FileSet fileSet = new FileSet(dir, "OSGI-INF/*.xml");
+
+			for (File xml : fileSet.getFiles()) {
+				trace("File %s", xml);
+				converter.annotate(xml);
+			}
+		}
 	}
 
 	@Description("Commands to verify the bnd communications setup")

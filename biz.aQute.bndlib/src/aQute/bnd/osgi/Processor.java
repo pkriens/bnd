@@ -886,7 +886,6 @@ public class Processor extends Domain implements Reporter, Registry, Constants, 
 	}
 
 	/**
-	 * @deprecated Use SLF4J Logger.debug instead.
 	 */
 	@Override
 	@Deprecated
@@ -894,13 +893,7 @@ public class Processor extends Domain implements Reporter, Registry, Constants, 
 		Processor p = current();
 		Logger l = p.getLogger();
 		if (p.trace) {
-			if (l.isInfoEnabled()) {
-				l.info("{}", formatArrays(msg, parms));
-			}
-		} else {
-			if (l.isDebugEnabled()) {
-				l.debug("{}", formatArrays(msg, parms));
-			}
+			System.err.println("# " + formatArrays(msg, parms));
 		}
 	}
 

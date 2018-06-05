@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" 
+    name="aaa"
+    activate="activate"
+    deactivate="deactivate"
+    modified="modified"
+    factory="factory"
+    immediate = "true"
+    configuration-policy="optional"
+    >
+   <implementation class="test.A"/>
+   <service>
+      <provide interface="test.x.Foo"/>
+   </service>
+   <reference bind="setBar" cardinality="0..1" interface="test.x.Bar" name="Bar" policy="dynamic" unbind="unsetBar" updated="updatedBar"/>
+   <reference field="bar" cardinality="0..1" interface="test.x.Bar" name="Bar" policy="dynamic" unbind="unsetBar" updated="updatedBar"/>
+</scr:component>

@@ -4,8 +4,8 @@ import java.io.File;
 import java.util.HashSet;
 
 import aQute.bnd.build.Project;
-import aQute.bnd.build.UpdateBuildTestPath;
 import aQute.bnd.build.Workspace;
+import aQute.bnd.build.util.UpdatePaths;
 import aQute.lib.io.IO;
 import junit.framework.TestCase;
 
@@ -35,7 +35,10 @@ public class PdeImportTest extends TestCase {
 			assertTrue(l.check());
 		}
 
-		try (UpdateBuildTestPath updater = new UpdateBuildTestPath(ws)) {
+		try (UpdatePaths updater = new UpdatePaths(ws)) {
+			updater.updateProject(p1, new HashSet<>());
+		}
+		try (UpdatePaths updater = new UpdatePaths(ws)) {
 			updater.updateProject(p2, new HashSet<>());
 		}
 

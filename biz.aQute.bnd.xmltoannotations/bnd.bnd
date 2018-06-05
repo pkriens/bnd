@@ -1,0 +1,11 @@
+-buildpath: \
+	com.github.javaparser:javaparser-core, \
+	org.osgi.service.component.annotations, \
+	biz.aQute.bndlib;version=latest, \
+	aQute.libg;version=latest, \
+	slf4j.api
+
+-conditionalpackage: aQute.lib*
+Export-Package: biz.aQute.bnd.xmltoannotations
+
+Private-Package: com.github.javaparser.*

@@ -437,9 +437,9 @@ public class HttpClient implements Closeable, URLConnector {
 			if (urlh.matches(url)) {
 				logger.debug("Decorate {} with handler {}", url, urlh);
 				return urlh;
-			} else
-				logger.debug("No match for {}, handler {}", url, urlh);
+			}
 		}
+		logger.debug("No match for {}, handler {}", url);
 		return null;
 	}
 
@@ -697,8 +697,10 @@ public class HttpClient implements Closeable, URLConnector {
 	}
 
 	public void readSettings(Processor processor) throws IOException, Exception {
-		connectionSettings = new ConnectionSettings(processor, this);
-		connectionSettings.readSettings();
+		logger.debug("read settings {}", processor);
+		try (ConnectionSettings cs = new ConnectionSettings(processor, this)) {
+			cs.readSettings();
+		}
 	}
 
 	public URI makeDir(URI uri) throws URISyntaxException {

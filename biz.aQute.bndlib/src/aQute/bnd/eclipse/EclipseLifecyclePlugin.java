@@ -5,6 +5,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Formatter;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -12,8 +14,10 @@ import java.util.regex.Pattern;
 
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 
+import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 import aQute.bnd.build.Project;
@@ -21,6 +25,8 @@ import aQute.bnd.build.model.BndEditModel;
 import aQute.bnd.build.model.clauses.ExportedPackage;
 import aQute.bnd.header.Parameters;
 import aQute.bnd.osgi.Constants;
+import aQute.bnd.osgi.Instruction;
+import aQute.bnd.osgi.Instructions;
 import aQute.bnd.properties.Document;
 import aQute.bnd.service.lifecycle.LifeCyclePlugin;
 import aQute.bnd.version.Version;
@@ -139,7 +145,7 @@ public class EclipseLifecyclePlugin extends LifeCyclePlugin {
 	// <classpathentry kind="output" path="bin"/>
 	// </classpath>
 
-	static Tag toClasspathTag(Project project, org.w3c.dom.Document original) {
+	public static Tag toClasspathTag(Project project, org.w3c.dom.Document original) throws XPathExpressionException {
 
 		String mainOutput = project.getProperty(Constants.DEFAULT_PROP_BIN_DIR);
 		String testOutput = project.getProperty(Constants.DEFAULT_PROP_TESTBIN_DIR);
@@ -151,6 +157,7 @@ public class EclipseLifecyclePlugin extends LifeCyclePlugin {
 		List<String> testSources = Strings.split(project.getProperty(Constants.DEFAULT_PROP_TESTSRC_DIR));
 		List<String> testResources = Strings.split(project.getProperty(Constants.DEFAULT_PROP_TESTRESOURCES_DIR));
 		testResources.removeAll(testSources);
+
 
 		Tag top = new Tag("classpath");
 		Tag jre = new Tag(top, "classpathentry");
@@ -179,21 +186,42 @@ public class EclipseLifecyclePlugin extends LifeCyclePlugin {
 
 		Tag b = new Tag(top, "classpathentry");
 		b.addAttribute("kind", "output");
-		b.addAttribute("path", project.getProperty("bin"));
+		b.addAttribute("path", project.getProperty(Constants.DEFAULT_PROP_BIN_DIR));
 
 		doClassPathEntry(mainOutput, mainSources, top);
 		doClassPathEntry(mainOutput, mainResources, top);
 		doClassPathEntry(testOutput, testSources, top);
 		doClassPathEntry(testOutput, testResources, top);
 
+		if (original != null)
+			copyAuxlilaryEntries(project, original, mainOutput, top);
+
 		return top;
 	}
 
-	private static void doClassPathEntry(String mainOutput, List<String> mainSources, Tag top) {
-		for (String mainSource : mainSources) {
+	private static void copyAuxlilaryEntries(Project project, org.w3c.dom.Document original, String mainOutput, Tag top)
+	        throws XPathExpressionException {
+		XPath xp = xpf.newXPath();
+		NodeList nodes = (NodeList) xp.evaluate("//classpathentry", original, XPathConstants.NODESET);
+		Instructions languages = new Instructions(
+		        project.getProperty("pde.additional.languages", "src/main/groovy, src/test/groovy"));
+
+		for (int i = 0; i < nodes.getLength(); i++) {
+			Node node = nodes.item(i);
+			String path = node.getAttributes().getNamedItem("path").getTextContent();
+			Instruction instruction = languages.matcher(path);
+			if (instruction == null)
+				continue;
+
+			doClassPathEntry(mainOutput, Collections.singleton(path), top);
+		}
+	}
+
+	private static void doClassPathEntry(String mainOutput, Collection<String> mainSources, Tag top) {
+		for (String path : mainSources) {
 			Tag s = new Tag(top, "classpathentry");
 			s.addAttribute("kind", "src");
-			s.addAttribute("path", mainSource);
+			s.addAttribute("path", path);
 			s.addAttribute("output", mainOutput);
 		}
 	}
