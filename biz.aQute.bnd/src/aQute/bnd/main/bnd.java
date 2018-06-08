@@ -254,7 +254,7 @@ public class bnd extends Processor {
 		String base();
 
 		@Description("Trace command progress")
-		boolean progress();
+		boolean trace();
 
 		@Description("Show log debug output")
 		boolean debug();
@@ -421,7 +421,7 @@ public class bnd extends Processor {
 		try {
 			set(FAIL_OK, options.failok() + "");
 			setExceptions(options.exceptions());
-			setTrace(options.progress());
+			setTrace(options.trace());
 			doLogging(options);
 
 			workspace = Workspace.findWorkspace(IO.work);
@@ -2804,9 +2804,10 @@ public class bnd extends Processor {
 				Run run = Run.createRun(null, f);
 				ws = run.getWorkspace();
 			} else {
+				progress("Using find workspace %s", f);
 				ws = Workspace.findWorkspace(f);
 			}
-			progress("Workspace %s %s", ws, ws.getProperty("-standalone"));
+			progress("Workspace %s %s %s", ws, ws.getBase(), ws.getProperty("-standalone"));
 		}
 		return ws;
 	}

@@ -2,6 +2,7 @@ package biz.aQute.bnd.xmltoannotations;
 
 import java.io.File;
 import java.lang.annotation.Annotation;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map.Entry;
 
@@ -24,13 +25,13 @@ import biz.aQute.bnd.xmltoannotations.ComponentDescriptor.ComponentAnnotations;
 import biz.aQute.bnd.xmltoannotations.ComponentDescriptor.DS;
 
 public class ConvertDSXmlToAnnotations extends Processor {
-	Logger				logger	= LoggerFactory.getLogger(ConvertDSXmlToAnnotations.class);
-	final DomDTOParser	p		= new DomDTOParser();
-	final List<File>	sources;
-	private boolean		dryrun;
-	private boolean		backup = true;
+	Logger					logger	= LoggerFactory.getLogger(ConvertDSXmlToAnnotations.class);
+	final DomDTOParser		p		= new DomDTOParser();
+	final Collection<File>	sources;
+	private boolean			dryrun;
+	private boolean			backup	= true;
 
-	public ConvertDSXmlToAnnotations(List<File> sources) {
+	public ConvertDSXmlToAnnotations(Collection<File> sources) {
 		this.sources = sources;
 	}
 
@@ -51,7 +52,8 @@ public class ConvertDSXmlToAnnotations extends Processor {
 
 			CompilationUnit cu = JavaParser.parse(sourcePath);
 			String simpleClassName = Descriptors.getShortName(fqClassName);
-			ClassOrInterfaceDeclaration target = cu.getClassByName(simpleClassName).orElse(null);
+			ClassOrInterfaceDeclaration target = cu.getClassByName(simpleClassName)
+				.orElse(null);
 			if (target == null) {
 				error("Source file %s does not contain class %s", sourcePath, fqClassName);
 				continue;
@@ -88,7 +90,8 @@ public class ConvertDSXmlToAnnotations extends Processor {
 		progress("type %s -> %s", ann.fqClassName, ann.component);
 
 		for (Entry<String, ? extends Annotation> e : ann.fields.entrySet()) {
-			FieldDeclaration field = target.getFieldByName(e.getKey()).orElse(null);
+			FieldDeclaration field = target.getFieldByName(e.getKey())
+				.orElse(null);
 			if (field != null) {
 				progress("field %s.%s -> %s", ann.fqClassName, e.getKey(), e.getValue());
 				ok &= annotate(field, e.getValue(), "field " + e.getKey());
@@ -106,7 +109,7 @@ public class ConvertDSXmlToAnnotations extends Processor {
 				progress("method %s.%s -> %s", ann.fqClassName, e.getKey(), e.getValue());
 				ok &= annotate(method, e.getValue(), "method " + e.getKey());
 			} else {
-				error("no such method %s.%s", ann.fqClassName,e.getKey());
+				error("no such method %s.%s", ann.fqClassName, e.getKey());
 				ok = false;
 			}
 		}
@@ -134,8 +137,8 @@ public class ConvertDSXmlToAnnotations extends Processor {
 	private boolean annotate(NodeWithAnnotations<?> target, Annotation ann, String diag) {
 		String string = ann.toString();
 		AnnotationExpr annotationExpr = JavaParser.parseAnnotation(string);
-		for ( AnnotationExpr x : target.getAnnotations()) {
-			if ( x.equals(annotationExpr.getName())) {
+		for (AnnotationExpr x : target.getAnnotations()) {
+			if (x.equals(annotationExpr)) {
 				error("Annotation %s already applied to %s", x.getName(), diag);
 			}
 		}
@@ -144,7 +147,8 @@ public class ConvertDSXmlToAnnotations extends Processor {
 	}
 
 	private File find(String fqn) {
-		String fqnToPath = Descriptors.fqnToPath(fqn).replaceAll("\\.class$", ".java");
+		String fqnToPath = Descriptors.fqnToPath(fqn)
+			.replaceAll("\\.class$", ".java");
 
 		for (File dir : sources) {
 			File trial = IO.getFile(dir, fqnToPath);

@@ -14,4 +14,11 @@
    </service>
    <reference bind="setBar" cardinality="0..1" interface="test.x.Bar" name="Bar" policy="dynamic" unbind="unsetBar" updated="updatedBar"/>
    <reference field="bar" cardinality="0..1" interface="test.x.Bar" name="Bar" policy="dynamic" unbind="unsetBar" updated="updatedBar"/>
+   <property name="foo" type="String" value="bar"/>
+   <property name="bar" type="String" value="foo"/>
+   <property name="list" type="Integer">1
+2
+4
+8
+   </property>
 </scr:component>

@@ -109,6 +109,7 @@ public class ConnectionSettings {
 	public void readSettings() throws Exception {
 		Parameters connectionSettings = new Parameters(processor.mergeProperties(CONNECTION_SETTINGS), processor);
 		if (connectionSettings.isEmpty()) {
+
 			File file = IO.getFile(BND_CONNECTION_SETTINGS_XML);
 			if (!file.isFile()) {
 				file = IO.getFile(M2_SETTINGS_XML);
@@ -116,6 +117,7 @@ public class ConnectionSettings {
 					return;
 				}
 			}
+			logger.info("empty connection settings, using defaults {} {}", processor, file);
 			parse(file);
 			return;
 		}
@@ -175,6 +177,10 @@ public class ConnectionSettings {
 					logger.info("external file");
 
 					File file = processor.findFile(key);
+					if (file == null) {
+						logger.info("no such external file  {} relative to {}", key, processor.getBase());
+						return;
+					}
 					if (!file.isFile()) {
 						logger.info("external file does not exist {}", file);
 
@@ -186,6 +192,7 @@ public class ConnectionSettings {
 								header.set(error);
 						}
 					} else {
+						logger.info("Reading settings from {}", file);
 						parse(file);
 					}
 				}

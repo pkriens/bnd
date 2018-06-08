@@ -1,0 +1,33 @@
+package test;
+
+import test.x.Foo;
+import test.x.Bar;
+
+@org.osgi.service.component.annotations.Component(factory = "factory", immediate = true, service = test.x.Foo.class, name = "aaa", property = { "foo=bar", "bar=foo", "list:Integer=1", "list:Integer=2", "list:Integer=4", "list:Integer=8" })
+public class A implements Foo {
+
+    @org.osgi.service.component.annotations.Reference(unbind = "unsetBar", service = test.x.Bar.class, name = "Bar", updated = "updatedBar", cardinality = org.osgi.service.component.annotations.ReferenceCardinality.OPTIONAL, policy = org.osgi.service.component.annotations.ReferencePolicy.DYNAMIC)
+    Bar bar;
+
+    @org.osgi.service.component.annotations.Activate
+    void activate(BundleContext context) {
+    }
+
+    @org.osgi.service.component.annotations.Deactivate
+    void deactivate() {
+    }
+
+    @org.osgi.service.component.annotations.Modified
+    void modified() {
+    }
+
+    @org.osgi.service.component.annotations.Reference(unbind = "unsetBar", service = test.x.Bar.class, name = "Bar", updated = "updatedBar", cardinality = org.osgi.service.component.annotations.ReferenceCardinality.OPTIONAL, policy = org.osgi.service.component.annotations.ReferencePolicy.DYNAMIC)
+    void setBar(Bar bar) {
+    }
+
+    void unsetBar(Bar bar) {
+    }
+
+    void updatedBar(Bar bar) {
+    }
+}

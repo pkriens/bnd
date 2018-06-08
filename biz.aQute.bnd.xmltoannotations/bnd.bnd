@@ -6,6 +6,9 @@
     osgi.annotation;version=latest,\
 	slf4j.api
 
+-testpath: \
+    ${junit}
+
 -conditionalpackage: aQute.lib*
 Export-Package: biz.aQute.bnd.xmltoannotations
 

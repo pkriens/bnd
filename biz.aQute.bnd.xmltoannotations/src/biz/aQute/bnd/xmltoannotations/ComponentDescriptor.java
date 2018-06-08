@@ -35,11 +35,11 @@ public class ComponentDescriptor extends DTO {
 	}
 
 	public static class ComponentAnnotations {
-		public String								fqClassName;
-		public Component							component;
+		public String					fqClassName;
+		public Component				component;
 		public Map<String, Annotation>	methods	= new HashMap<>();
 		public Map<String, Annotation>	fields	= new HashMap<>();
-		public String								simpleClassName;
+		public String					simpleClassName;
 	}
 
 	public static class Implementation extends DTO {
@@ -83,6 +83,7 @@ public class ComponentDescriptor extends DTO {
 		public String	name;
 		public String	value;
 		public String	type;
+		public String	_content;	// if the property's content is used
 	}
 
 	public static class Properties extends DTO {
@@ -106,13 +107,8 @@ public class ComponentDescriptor extends DTO {
 	public Service						service;
 	public List<ReferenceDescriptor>	reference	= new ArrayList<>();
 
-	
-	
-	
-	
 	/**
 	 * Convert this descriptor to annotations on the type, field and methods.
-	 * 
 	 */
 	public ComponentAnnotations toAnnotations() {
 		ComponentAnnotations result = new ComponentAnnotations();
@@ -122,20 +118,29 @@ public class ComponentDescriptor extends DTO {
 
 		AnnotationSetter<Component> c = new AnnotationSetter<>(Component.class);
 		result.component = c.a();
-		
-		if ( this.configuration_pid!= null && !this.configuration_pid.isEmpty())
-			c.set(c.a().configurationPid(), getConfigurationPids(this.configuration_pid));
-		c.set(c.a().enabled(), this.enabled);
-		c.set(c.a().immediate(), this.immediate);
-		c.set(c.a().configurationPolicy(), this.configuration_policy);
-		c.set(c.a().factory(), this.factory);
-		c.set(c.a().name(), this.name);
-		c.set(c.a().properties(), getPropertiesAsStrings(this.properties));
-		c.set(c.a().property(), getPropertyAsStrings(this.property));
+
+		if (this.configuration_pid != null && !this.configuration_pid.isEmpty())
+			c.set(c.a()
+				.configurationPid(), getConfigurationPids(this.configuration_pid));
+		c.set(c.a()
+			.enabled(), this.enabled);
+		c.set(c.a()
+			.immediate(), this.immediate);
+		c.set(c.a()
+			.configurationPolicy(), this.configuration_policy);
+		c.set(c.a()
+			.factory(), this.factory);
+		c.set(c.a()
+			.name(), this.name);
+		c.set(c.a()
+			.properties(), getPropertiesAsStrings(this.properties));
+		c.set(c.a()
+			.property(), getPropertyAsStrings(this.property));
 
 		if (this.service != null) {
 			String[] types = getProvideAsStrings(this.service.provide);
-			c.set(c.a().service(), types);
+			c.set(c.a()
+				.service(), types);
 		}
 
 		if (this.activate != null)
@@ -150,25 +155,35 @@ public class ComponentDescriptor extends DTO {
 		for (ReferenceDescriptor reference : this.reference) {
 			AnnotationSetter<Reference> r = new AnnotationSetter<>(Reference.class);
 
-			r.set(r.a().target(), reference.target);
-			r.set(r.a().cardinality(), toCardinality(reference.cardinality));
-			r.set(r.a().policy(), reference.policy);
-			r.set(r.a().policyOption(), reference.policy_option);
-			r.set(r.a().scope(), reference.scope);
+			r.set(r.a()
+				.target(), reference.target);
+			r.set(r.a()
+				.cardinality(), toCardinality(reference.cardinality));
+			r.set(r.a()
+				.policy(), reference.policy);
+			r.set(r.a()
+				.policyOption(), reference.policy_option);
+			r.set(r.a()
+				.scope(), reference.scope);
 
 			String fqService = reference.interface_;
-			r.set(r.a().service(), fqService + ".class");
+			r.set(r.a()
+				.service(), fqService + ".class");
 
 			if (reference.field != null) {
 
 				String defaultName = reference.field;
 				if (!defaultName.equals(reference.name)) {
-					r.set(r.a().name(), reference.name);
+					r.set(r.a()
+						.name(), reference.name);
 				}
 
-				r.set(r.a().bind(), reference.bind);
-				r.set(r.a().updated(), reference.updated);
-				r.set(r.a().unbind(), reference.unbind);
+				r.set(r.a()
+					.bind(), reference.bind);
+				r.set(r.a()
+					.updated(), reference.updated);
+				r.set(r.a()
+					.unbind(), reference.unbind);
 
 				result.fields.put(reference.field, r.a());
 
@@ -176,10 +191,13 @@ public class ComponentDescriptor extends DTO {
 
 				String defaultName = stripMethodPrefixes(reference.bind);
 				if (!defaultName.equals(reference.name)) {
-					r.set(r.a().name(), reference.name);
+					r.set(r.a()
+						.name(), reference.name);
 				}
-				r.set(r.a().updated(), reference.updated);
-				r.set(r.a().unbind(), reference.unbind);
+				r.set(r.a()
+					.updated(), reference.updated);
+				r.set(r.a()
+					.unbind(), reference.unbind);
 
 				result.methods.put(reference.bind, r.a());
 			}
@@ -207,18 +225,18 @@ public class ComponentDescriptor extends DTO {
 		}
 
 		switch (cardinality.trim()) {
-		case "0..1":
-			return ReferenceCardinality.OPTIONAL;
+			case "0..1" :
+				return ReferenceCardinality.OPTIONAL;
 
-		case "1..1":
-			return ReferenceCardinality.MANDATORY;
-		case "0..n":
-			return ReferenceCardinality.MULTIPLE;
-		case "1..n":
-			return ReferenceCardinality.AT_LEAST_ONE;
+			case "1..1" :
+				return ReferenceCardinality.MANDATORY;
+			case "0..n" :
+				return ReferenceCardinality.MULTIPLE;
+			case "1..n" :
+				return ReferenceCardinality.AT_LEAST_ONE;
 
-		default:
-			return ReferenceCardinality.MANDATORY;
+			default :
+				return ReferenceCardinality.MANDATORY;
 		}
 	}
 
@@ -226,44 +244,68 @@ public class ComponentDescriptor extends DTO {
 		if (list == null)
 			return null;
 
-		return list.stream().map(p -> p.interface_ +".class").toArray(String[]::new);
+		return list.stream()
+			.map(p -> p.interface_ + ".class")
+			.toArray(String[]::new);
 	}
 
 	private String[] getPropertiesAsStrings(List<Properties> list) {
 		if (list == null || list.isEmpty())
 			return null;
 
-		return list.stream().map(properties -> properties.entry).toArray(String[]::new);
+		return list.stream()
+			.map(properties -> properties.entry)
+			.toArray(String[]::new);
 	}
 
 	private String[] getPropertyAsStrings(List<Property> list) {
 		if (list == null || list.isEmpty())
 			return null;
+		List<String> propDefs = new ArrayList<>();
 
-		return list.stream().map(property -> {
-			StringBuilder sb = new StringBuilder();
-			sb.append(property.name);
-			if (property.type != null && !property.type.equals("String")) {
-				sb.append(":").append(property.type);
+		list.forEach(property -> {
+
+			if (property.value == null) {
+				if (property._content != null) {
+					String values[] = property._content.split("[\n\r]+");
+					for (String v : values) {
+						String propDef = toString(property.name, v, property.type);
+						propDefs.add(propDef);
+					}
+				}
+			} else {
+				String propDef = toString(property.name, property.value, property.type);
+				propDefs.add(propDef);
 			}
-			sb.append("=").append(property.value);
+		});
+		return propDefs.toArray(new String[0]);
+	}
 
-			return sb.toString();
-		}).toArray(String[]::new);
+	private String toString(String name, String value, String type) {
+		StringBuilder sb = new StringBuilder();
+		sb.append(name);
+		if (type != null && !type.equals("String")) {
+			sb.append(":")
+				.append(type);
+		}
+		sb.append("=");
+		sb.append(value);
+		return sb.toString();
 	}
 
 	private String[] getConfigurationPids(String configuration_pid) {
-		return Strings.split(configuration_pid).toArray(new String[0]);
+		return Strings.split(configuration_pid)
+			.toArray(new String[0]);
 	}
 
 	public void validate(Reporter reporter) {
-		if ( implementation == null) {
+		if (implementation == null) {
 			reporter.error("No implementation class element specificied");
 		} else {
-			if ( implementation.class_ == null)
+			if (implementation.class_ == null)
 				reporter.error("No implementation class attribute specificied");
 			else {
-				if ( !Verifier.isFQN(implementation.class_)) {
+				if (!Verifier.isFQN(implementation.class_)) {
 					reporter.error("Implementation class not a FQN %s", implementation.class_);
 				}
 			}
