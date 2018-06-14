@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
@@ -48,6 +49,7 @@ import aQute.bnd.main.bnd.projectOptions;
 import aQute.bnd.maven.support.MavenRemoteRepository;
 import aQute.bnd.osgi.Constants;
 import aQute.bnd.osgi.Descriptors;
+import aQute.bnd.osgi.Domain;
 import aQute.bnd.osgi.Instruction;
 import aQute.bnd.osgi.Instructions;
 import aQute.bnd.osgi.Jar;
@@ -747,8 +749,11 @@ public class RepoCommand {
 
 		for (Spec spec : sources) {
 			File src = spec.src.getFile();
-
-			copyIt(options.dry(), dest, spec, src);
+			if (isBundle(src)) {
+				copyIt(options.dry(), dest, spec, src);
+			} else {
+				bnd.warning("Not a bundle %s %s %s", spec.bsn, spec.version, src);
+			}
 		}
 		progressToOutput.clear();
 
@@ -766,6 +771,12 @@ public class RepoCommand {
 				bnd.out.printf(" %-60s %-30s %-20s %-20s%n", bsn, version, "skip", "-");
 			}
 		}
+	}
+
+	private boolean isBundle(File src) throws IOException {
+		Domain domain = Domain.domain(src);
+		Entry<String, Attrs> bundleSymbolicName = domain.getBundleSymbolicName();
+		return bundleSymbolicName != null;
 	}
 
 	private void copyIt(boolean dry, RepositoryPlugin dest, Spec spec, File src) throws ZipException, IOException {

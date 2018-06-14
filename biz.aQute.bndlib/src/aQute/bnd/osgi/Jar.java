@@ -1026,13 +1026,13 @@ public class Jar implements Closeable {
 	}
 
 	/**
-	 * Expand the JAR file to a directory.
+	 * Expand the JAR file to a directory as is. This will write the content
+	 * only and will not
 	 * 
 	 * @param dir the dst directory, is not required to exist
 	 * @throws Exception if anything does not work as expected.
 	 */
 	public void expand(File dir) throws Exception {
-		writeFolder(dir);
 		check();
 		dir = dir.getAbsoluteFile();
 		IO.mkdirs(dir);

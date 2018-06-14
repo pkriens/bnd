@@ -10,6 +10,9 @@ import aQute.bnd.osgi.Jar;
 import aQute.bnd.osgi.Processor;
 import aQute.lib.strings.Strings;
 
+/**
+ * Model the build.properties file in Eclipse
+ */
 public class EclipseBuildProperties {
 
 	final List<Library> libraries = new ArrayList<>();

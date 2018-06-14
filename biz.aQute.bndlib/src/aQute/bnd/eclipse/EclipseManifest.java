@@ -23,7 +23,10 @@ public class EclipseManifest {
 			"Built-By", "Created-By", "Bundle-RequiredExecutionEnvironment", "Build-Jdk", "Bundle-ManifestVersion",
 			"ManifestVersion", "Archiver-Version", Constants.BUNDLE_CLASSPATH, Constants.EXPORT_PACKAGE,
 			"Manifest-Version", Constants.BUNDLE_SYMBOLICNAME, Constants.SERVICE_COMPONENT, Constants.IMPORT_PACKAGE,
-	        "Originally-Created-By", Constants.PRIVATE_PACKAGE, Constants.IGNORE_PACKAGE, Constants.REQUIRE_BUNDLE
+		"Originally-Created-By", Constants.PRIVATE_PACKAGE, Constants.IGNORE_PACKAGE, Constants.REQUIRE_BUNDLE,
+
+		// Qivicon specific
+		Constants.BUNDLE_VERSION
 	};
 
 	public static String		COMMENT_HEADERS[]	= {
@@ -58,7 +61,8 @@ public class EclipseManifest {
 		assert bsn != null;
 	}
 
-	public String toBndFile(Set<String> sourcePackages, String workingset) throws IOException {
+	public String toBndFile(Set<String> sourcePackages, BndConversionPaths mainResources, String workingset)
+		throws IOException {
 		try (Formatter model = new Formatter()) {
 
 			Attrs attrs = manifest.getBundleSymbolicName().getValue();
@@ -126,6 +130,18 @@ public class EclipseManifest {
 			if (workingset != null) {
 				model.format(HEADER_FORMAT, "-workingset", workingset);
 			}
+
+			if (false) {
+				// TODO We should check the workspace first
+				if (mainResources != null && !mainResources.directories.isEmpty()) {
+					model.format("\n%s: ", Constants.INCLUDERESOURCE);
+					for (String path : mainResources.directories) {
+						model.format(" \\\n\t%s", path);
+					}
+					model.format("\n\n");
+				}
+			}
+
 			return model.toString();
 		}
 

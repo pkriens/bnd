@@ -24,14 +24,14 @@ public class ConvertDSXmlToAnnotationsTest {
 		IO.copy(IO.getFile("resources/"), tmp);
 		File sources = new File(tmp, "ds");
 		FileSet xmls = new FileSet(tmp, "**.xml");
-		ConvertDSXmlToAnnotations cdx = new ConvertDSXmlToAnnotations(Collections.singleton(sources));
-		for (File xml : xmls.getFiles()) {
-			cdx.annotate(xml);
+		try (ConvertDSXmlToAnnotations cdx = new ConvertDSXmlToAnnotations(Collections.singleton(sources))) {
+			for (File xml : xmls.getFiles()) {
+				cdx.annotate(xml);
+			}
+
+			String result = IO.collect(IO.getFile(tmp, "ds/test/A.java"));
+			String expected = IO.collect(IO.getFile("resources/ds/test/A.expected"));
+			assertEquals(expected, result);
 		}
-
-		String result = IO.collect(IO.getFile(tmp, "ds/test/A.java"));
-		String expected = IO.collect(IO.getFile("resources/ds/test/A.expected"));
-		assertEquals(expected, result);
-
 	}
 }

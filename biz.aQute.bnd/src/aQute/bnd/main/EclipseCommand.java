@@ -59,17 +59,20 @@ public class EclipseCommand extends Processor {
 		@Description("Eclipse Workingset for imported projects")
 		String[] set();
 
-		@Description("Used a bnd file to specify the imported files. \n" + " -pde.input ::= part ( ',' part )*\n"
-				+ " part       ::= (<filespec>;workingset=\"(ws ( , ws)*)\")")
+		@Description("Used a bnd file to specify the imported files. \n")
 		String instructions();
 
 		@Description("If a directory is not a project directory (contains build.properties), recursively descent")
 		boolean recurse();
+
+		@Description("Use the PDE manifest untouched. This then guarantees that the build generates an identical manifest but will of course not leverage bnd's magic ...")
+		boolean manifestfirst();
 	}
 
 	@Description("Eclipse PDE to bnd project conversion")
 	public void _pde(ToBndOptions options) throws Exception {
-		if (options._arguments().isEmpty() || options._arguments().get(0).equals("help")) {
+		if (options._arguments()
+			.isEmpty()) {
 			bnd.out.println(options._help());
 			return;
 		}

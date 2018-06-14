@@ -2430,9 +2430,13 @@ public class Processor extends Domain implements Reporter, Registry, Constants, 
 
 	@Override
 	public Location getLocation(String msg) {
-		for (Location l : locations)
-			if ((l.message != null) && l.message.equals(msg))
+		for (Location l : locations) {
+			if (l == null) {
+				return null;
+			}
+			if (l.message != null && l.message.equals(msg))
 				return l;
+		}
 
 		return null;
 	}

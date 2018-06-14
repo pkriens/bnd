@@ -1,6 +1,5 @@
 package aQute.bnd.eclipse;
 
-import java.util.Formatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,24 +18,23 @@ public class BndConversionPaths {
 	final List<String>				directories;
 	final HashMap<String, String>	mapper;
 	final String					key;
-	final int						length;
 
 	public BndConversionPaths(Processor ws, String key, String ifNoDefaultPath, String defaultMapping) {
 		this.key = key;
 		String mapper = ws.getProperty(key + ".mapping", defaultMapping);
 		this.mapper = new HashMap<String, String>();
 
-		for (Map.Entry<String, String> e : OSGiHeader.parseProperties(mapper).entrySet()) {
+		for (Map.Entry<String, String> e : OSGiHeader.parseProperties(mapper)
+			.entrySet()) {
 			String k = ensureDirectory(e.getKey());
 			String v = ensureDirectory(e.getValue());
 			this.mapper.put(k, v);
 		}
 
 		directories = Strings.split(ws.getProperty(key, ifNoDefaultPath))
-				.stream()
-				.map(this::ensureDirectory)
-				.collect(Collectors.toList());
-		length = directories.size();
+			.stream()
+			.map(this::ensureDirectory)
+			.collect(Collectors.toList());
 	}
 
 	String map(String fromDir) {
@@ -78,18 +76,6 @@ public class BndConversionPaths {
 		directories.add(sourceDir);
 	}
 
-	public void update(Formatter model) {
-		try (Formatter sub = new Formatter()) {
-			String del = "${^" + key + "}, ";
-			for (int i = length; i < directories.size(); i++) {
-				sub.format("%s%s", del, directories.get(i));
-				del = ", ";
-			}
-			if (sub.toString().length() != 0)
-				model.format(EclipseManifest.HEADER_FORMAT, key, sub.toString());
-		}
-	}
-
 	public void remove(Jar content, String string) {
 		Map<String, Resource> resources = content.getResources();
 		for (String dir : directories) {
@@ -110,6 +96,25 @@ public class BndConversionPaths {
 			}
 		}
 		return relative;
+	}
+
+	public String getRelative(String path) {
+		for (String dir : directories) {
+			if (path.startsWith(dir)) {
+				return path.substring(dir.length());
+			}
+		}
+		return null;
+	}
+
+	public String find(Jar content, String sub) {
+		for (String dir : directories) {
+			String path = dir + sub;
+			if (content.getResources()
+				.containsKey(path))
+				return path;
+		}
+		return null;
 	}
 
 }
