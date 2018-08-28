@@ -20,8 +20,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collector;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.osgi.framework.namespace.AbstractWiringNamespace;
 import org.osgi.framework.namespace.BundleNamespace;
@@ -332,25 +332,11 @@ public class ResourceUtils {
 		String name = method.getName()
 			.replace('_', '.');
 
-		Object value = get0(name, attrs, directives, args);
-		if (value == null) {
-			value = get0(name.replace('_', '.'), attrs, directives, args);
-		}
-
-		if (value == null) {
-			value = get0(name.replace('_', '-'), attrs, directives, args);
-		}
-
-		return (T) cnv.convert(method.getGenericReturnType(), value);
-	}
-
-	static Object get0(String name, Map<String, Object> attrs, Map<String, String> directives, Object[] args) {
 		Object value;
 		if (name.startsWith("$"))
 			value = directives.get(name.substring(1));
-		else {
+		else
 			value = attrs.get(name);
-		}
 		if (value == null && args != null && args.length == 1)
 			value = args[0];
 

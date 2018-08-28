@@ -18,7 +18,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.net.URI;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -53,7 +52,6 @@ import java.util.jar.Attributes.Name;
 import java.util.jar.Manifest;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.zip.ZipException;
 
 import javax.xml.parsers.DocumentBuilder;
@@ -91,7 +89,6 @@ import aQute.bnd.main.BaselineCommands.baseLineOptions;
 import aQute.bnd.main.BaselineCommands.schemaOptions;
 import aQute.bnd.main.DiffCommand.diffOptions;
 import aQute.bnd.main.RepoCommand.repoOptions;
-import aQute.bnd.main.XRefCommand.xrefOptions;
 import aQute.bnd.maven.MavenCommand;
 import aQute.bnd.maven.PomFromManifest;
 import aQute.bnd.osgi.About;
@@ -113,8 +110,6 @@ import aQute.bnd.osgi.Processor;
 import aQute.bnd.osgi.Resource;
 import aQute.bnd.osgi.Verifier;
 import aQute.bnd.osgi.eclipse.EclipseClasspath;
-import aQute.bnd.osgi.repository.XMLResourceGenerator;
-import aQute.bnd.osgi.resource.ResourceBuilder;
 import aQute.bnd.repository.maven.provider.NexusCommand;
 import aQute.bnd.service.Actionable;
 import aQute.bnd.service.RepositoryPlugin;
@@ -143,7 +138,6 @@ import aQute.lib.strings.Strings;
 import aQute.lib.tag.Tag;
 import aQute.lib.utf8properties.UTF8Properties;
 import aQute.libg.classdump.ClassDumper;
-import aQute.libg.command.Command;
 import aQute.libg.cryptography.MD5;
 import aQute.libg.cryptography.SHA1;
 import aQute.libg.cryptography.SHA256;
@@ -162,26 +156,21 @@ import biz.aQute.bnd.xmltoannotations.ConvertDSXmlToAnnotations;
  * Utility to make bundles. @version $Revision: 1.14 $
  */
 public class bnd extends Processor {
-	static {
-		System.setProperty("org.slf4j.simpleLogger.logFile", "System.err");
-		System.setProperty("org.slf4j.simpleLogger.defaultLogLevel", "debug");
-		System.setProperty("org.slf4j.simpleLogger.showShortLogName ", "true");
-	}
-	private Logger								logger;
-
-	static Pattern								ASSIGNMENT				= Pattern.compile(																//
-			"([^=]+) (= ( ?: (\"|'|) (.+) \\3 )? ) ?", Pattern.COMMENTS);
+	private static Logger						logger					= LoggerFactory.getLogger(bnd.class);
+	static Pattern								ASSIGNMENT				= Pattern.compile(															//
+		"([^=]+) (= ( ?: (\"|'|) (.+) \\3 )? ) ?", Pattern.COMMENTS);
 	Settings									settings				= new Settings();
 	final PrintStream							err						= System.err;
 	final public PrintStream					out						= System.out;
 	Justif										justif					= new Justif(80, 40, 42, 70);
 	BndMessages									messages				= ReporterMessages.base(this,
-			BndMessages.class);
-	private Workspace							workspace;
+		BndMessages.class);
+	private Workspace							ws;
 	private char[]								password;
 	private Workspace							workspace;
 
 	private static final ThreadLocal<Boolean>	noExit					= new ThreadLocal<Boolean>() {
+																			@Override
 																			protected Boolean initialValue() {
 																				return false;
 																			};
@@ -189,7 +178,7 @@ public class bnd extends Processor {
 	private static final String					DEFAULT_LOG_LEVEL_KEY	= "org.slf4j.simpleLogger.defaultLogLevel";
 
 	static Pattern								JARCOMMANDS				= Pattern
-			.compile("(cv?0?(m|M)?f?)|(uv?0?M?f?)|(xv?f?)|(tv?f?)|(i)");
+		.compile("(cv?0?(m|M)?f?)|(uv?0?M?f?)|(xv?f?)|(tv?f?)|(i)");
 
 	static Pattern								COMMAND					= Pattern.compile("\\w[\\w\\d]+");
 	static Pattern								EMAIL_P					= Pattern.compile(
@@ -253,7 +242,7 @@ public class bnd extends Processor {
 		@Description("Use as base directory")
 		String base();
 
-		@Description("Trace command progress")
+		@Description("Trace progress")
 		boolean trace();
 
 		@Description("Show log debug output")
@@ -277,7 +266,6 @@ public class bnd extends Processor {
 	public bnd() {}
 
 	public static void main(String args[]) throws Exception {
-
 		Workspace.setDriver(Constants.BNDDRIVER_BND);
 		Workspace.addGestalt(Constants.GESTALT_SHELL, null);
 		Workspace.addGestalt(Constants.GESTALT_INTERACTIVE, null);
@@ -477,8 +465,8 @@ public class bnd extends Processor {
 		}
 		out.flush();
 		err.flush();
-		if (workspace != null)
-			getInfo(workspace);
+		if (ws != null)
+			getInfo(ws);
 
 		if (!check(options.ignore())) {
 			err.flush();
@@ -823,13 +811,6 @@ public class bnd extends Processor {
 	}
 
 	@Description("Execute a Project action, or if no parms given, show information about the project")
-	@Arguments(arg = {})
-	interface workspaceOptions extends Options {
-		@Description("The workspace directory")
-		String workspace();
-	}
-
-	@Description("Execute a Project action, or if no parms given, show information about the project")
 	public void _project(projectOptions options) throws Exception {
 		Project project = getProject(options.project());
 		if (project == null) {
@@ -1024,7 +1005,7 @@ public class bnd extends Processor {
 		boolean continuous();
 
 		@Description("Set the -runtrace flag")
-		boolean progress();
+		boolean trace();
 	}
 
 	@Description("Test a project according to an OSGi test")
@@ -1056,7 +1037,7 @@ public class bnd extends Processor {
 				if (opts.continuous())
 					project.setProperty(TESTCONTINUOUS, "true");
 
-				if (opts.progress() || isTrace())
+				if (opts.trace() || isTrace())
 					project.setProperty(RUNTRACE, "true");
 
 				project.test(testNames);
@@ -1073,18 +1054,6 @@ public class bnd extends Processor {
 			@Override
 			public void doit(Project p) throws Exception {
 				p.junit();
-			}
-		});
-	}
-
-	@Description("Show all projects")
-	public void _projects(projectOptions opts) throws Exception {
-
-		perProject(opts, new PerProject() {
-
-			@Override
-			public void doit(Project p) throws Exception {
-				out.println(p);
 			}
 		});
 	}
@@ -1362,7 +1331,7 @@ public class bnd extends Processor {
 		Processor project = getProject(options.project());
 
 		if (project == null)
-			project = workspace;
+			project = ws;
 
 		if (project == null) {
 			messages.NoProject();
@@ -1457,7 +1426,7 @@ public class bnd extends Processor {
 
 
 	@Description("Show a cross references for all classes in a set of jars.")
-	public void _xref(xrefOptions options) throws IOException, Exception {
+	public void _xref(XRefCommand.xrefOptions options) throws IOException, Exception {
 		XRefCommand cx = new XRefCommand(this);
 		cx.xref(options);
 	}
@@ -2748,12 +2717,12 @@ public class bnd extends Processor {
 		if (workspaceDir == null) {
 			workspaceDir = getBase();
 		}
-		workspace = Workspace.findWorkspace(workspaceDir);
-		if (workspace == null)
+		ws = Workspace.findWorkspace(workspaceDir);
+		if (ws == null)
 			return null;
 
-		workspace.use(this);
-		return workspace;
+		ws.use(this);
+		return ws;
 	}
 
 	public Project getProject(String where) throws Exception {
@@ -2775,8 +2744,8 @@ public class bnd extends Processor {
 
 			File projectDir = f.getParentFile();
 			File workspaceDir = projectDir.getParentFile();
-			workspace = Workspace.findWorkspace(workspaceDir);
-			Project project = workspace.getProject(projectDir.getName());
+			ws = Workspace.findWorkspace(workspaceDir);
+			Project project = ws.getProject(projectDir.getName());
 			if (project.isValid()) {
 				project.use(this);
 				return project;
@@ -2799,9 +2768,10 @@ public class bnd extends Processor {
 				ws = Workspace.createStandaloneWorkspace(new Processor(), IO.work.toURI());
 		} else {
 			File f = getFile(where);
-			if (f.isFile() && f.getName().endsWith(Run.DEFAULT_BNDRUN_EXTENSION)) {
-				progress("Using bndrun file %s", f);
-				Run run = Run.createRun(null, f);
+			ws = Workspace.findWorkspace(f);
+			if (f.isFile() && f.getName()
+				.endsWith(Constants.DEFAULT_BNDRUN_EXTENSION)) {
+				Run run = Run.createRun(ws, f);
 				ws = run.getWorkspace();
 			} else {
 				progress("Using find workspace %s", f);
@@ -4188,12 +4158,12 @@ public class bnd extends Processor {
 		if ("workspace".equals(what)) {
 			for (String pname : args) {
 				File wsdir = getFile(pname);
-				workspace = Workspace.createWorkspace(wsdir);
-				if (workspace == null) {
+				ws = Workspace.createWorkspace(wsdir);
+				if (ws == null) {
 					error("Could not create workspace");
 				}
 			}
-			getInfo(workspace);
+			getInfo(ws);
 			return;
 		}
 
@@ -4669,85 +4639,6 @@ public class bnd extends Processor {
 		}
 	}
 
-	@Description("Create an XML Repository index")
-	@Arguments(arg = {
-			"fileset..."
-	})
-	interface IndexOptions extends Options {
-		@Description("Paths to resources are defined relative to this root. Default is the base directory of this command (either current working directory or set with bnd -b)")
-		String base();
-
-		@Description("Base uri, this will be used to resolve the actual file uri after it is relativized against the base")
-		URI uri(URI deflt);
-
-		@Description("Output file. If it ends in .gz it will be compressed")
-		String out(String deflt);
-
-		@Description("The name of the repository")
-		String name(String deflt);
-
-		@Description("Set the depth of referals. If there are multiple referrals, with different depts, specify depths multiple times in same order")
-		int[] depth(int[] is);
-
-		@Description("Add a Referral.")
-		URI[] referral();
-	}
-
-	@Description("Create an XML Repository index")
-	public void _index(IndexOptions options) throws Exception {
-		File root = options.base() == null ? getBase() : getFile(options.base());
-		if (!root.isDirectory()) {
-			error("The root %s is not a directory", root);
-			return;
-		}
-		URI uri = options.uri(root.toURI());
-
-		File out = getFile(options.out("index.xml"));
-		if (!out.getParentFile().isDirectory())
-			out.getParentFile().mkdirs();
-
-		List<org.osgi.resource.Resource> resources = new ArrayList<>();
-
-		for (String fileset : options._arguments()) {
-			logger.trace("file set {} {} {}", fileset, root, uri);
-			FileSet fs = new FileSet(root, fileset);
-			for (File file : fs.getFiles()) {
-				try {
-					URI actual = file.toURI();
-					String path = root.toURI().relativize(actual).getPath();
-					actual = uri.resolve(path);
-					logger.trace("file {} {}", actual, path);
-					ResourceBuilder rb = new ResourceBuilder();
-					rb.addFile(file, actual);
-					org.osgi.resource.Resource resource = rb.build();
-					resources.add(resource);
-				} catch (Exception e) {
-					exception(e, "Failed to parse %s", fs);
-				}
-			}
-		}
-
-		XMLResourceGenerator gen = new XMLResourceGenerator();
-
-		int[] depth = options.depth(new int[] {
-				5
-		});
-
-		URI[] referrals = options.referral();
-		if (referrals != null) {
-			for (int i = 0; i < depth.length; i++) {
-				int d = i < depth.length ? depth[i] : depth[0];
-				gen.referral(referrals[i], d);
-			}
-		}
-
-		if (out.getName().endsWith(".gz"))
-			gen.compress();
-
-		gen.name(options.name(getBase().getName())).//
-				resources(resources).//
-				save(out);
-	}
 
 	private void forEachLine(String file, Consumer<String> c) throws IOException {
 		InputStream in = System.in;
@@ -4808,60 +4699,20 @@ public class bnd extends Processor {
 		}
 	}
 
-	@Arguments(arg = {
-			"command", "args..."
-	})
-	@Description("Add the current buildpath and testpath to a command. The commandline will be 'command' -cp 'path' args...")
-	interface ShellCommand extends projectOptions {
-		@Description("The classpath option, default -cp")
-		String cp(String deflt);
+	/**
+	 * Index command
+	 *
+	 * @throws Exception
+	 */
 
-		@Description("Just print the command line instead of executing it. ")
-		boolean noexec();
-
+	@Description("Index bundles from the local file system")
+	public void _index(IndexCommand.indexOptions options) throws Exception {
+		IndexCommand ic = new IndexCommand(this);
+		ic.use(this);
+		ic._index(options);
+		ic.close();
 	}
 
-	@Description("Add the current buildpath and testpath to a command")
-	public void _cp(ShellCommand options) throws Exception {
-		Project p = getProject(options.project());
-		if (p == null) {
-			error("Not in a project");
-			return;
-		}
-
-		List<String> args = options._arguments();
-
-		List<File> dirs = new ArrayList<>();
-		dirs.add(p.getOutput());
-		dirs.addAll(p.getBuildpath().stream().map(c -> c.getFile().getAbsoluteFile()).collect(Collectors.toList()));
-		dirs.addAll(p.getTestpath().stream().map(c -> c.getFile().getAbsoluteFile()).collect(Collectors.toList()));
-
-		Command command = new Command();
-		String name = args.remove(0);
-		String cp = "-cp";
-
-		switch (name) {
-			case "jshell" :
-				cp = "--class-path";
-				break;
-		}
-
-		command.add(name);
-		command.add(options.cp("-cp"));
-
-		String path = //
-				dirs.stream().map(f -> f.getAbsolutePath()).collect(Collectors.joining(File.pathSeparator));
-		command.add(path);
-		command.addAll(args);
-
-		System.out.println(command);
-		if (options.noexec())
-			return;
-
-		int execute = command.execute(System.in, System.out, System.err);
-		if (execute != 0)
-			error("Failed result %s", execute);
-	}
 
 	/**
 	 * Take a DS XML file and convert them to attributes on a source file.

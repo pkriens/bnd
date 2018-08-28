@@ -6,8 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.annotation.XmlAttribute;
-
 import org.osgi.service.component.annotations.Activate;
 import org.osgi.service.component.annotations.Component;
 import org.osgi.service.component.annotations.ConfigurationPolicy;
@@ -26,6 +24,7 @@ import aQute.bnd.osgi.Verifier;
 import aQute.bnd.util.dto.DTO;
 import aQute.lib.annotations.setter.AnnotationSetter;
 import aQute.lib.strings.Strings;
+import aQute.lib.xmldtoparser.XmlAttribute;
 import aQute.service.reporter.Reporter;
 
 public class ComponentDescriptor extends DTO {
