@@ -180,7 +180,6 @@ public class ComponentTest extends TestCase {
 		Manifest manifest = jar.getManifest();
 		String component = manifest.getMainAttributes()
 			.getValue("Service-Component");
-		System.err.println(component);
 		assertNull(component);
 	}
 
@@ -363,10 +362,7 @@ public class ComponentTest extends TestCase {
 		});
 		b.setProperties(p);
 		b.build();
-		assertEquals(0, b.getErrors()
-			.size());
-		assertEquals(0, b.getWarnings()
-			.size());
+		assertTrue(b.check());
 
 		Jar jar = b.getJar();
 
