@@ -54,6 +54,7 @@ public class WorkspaceTest extends TestCase {
 	}
 
 	public void testGestalt() throws Exception {
+		Workspace.resetStatic();
 		Attrs attrs = new Attrs();
 		attrs.put("x", "10");
 		Workspace.addGestalt("peter", attrs);

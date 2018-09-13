@@ -1251,4 +1251,14 @@ public class Workspace extends Processor {
 	public boolean isDefaultWorkspace() {
 		return BND_DEFAULT_WS.equals(getBase());
 	}
+
+	@Override
+	public boolean isInteractive() {
+		return getGestalt(Constants.GESTALT_INTERACTIVE) != null;
+	}
+
+	public static void resetStatic() {
+		overallDriver = "unset";
+		overallGestalt = new Parameters();
+	}
 }
