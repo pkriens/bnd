@@ -33,3 +33,34 @@ The `filter:` directive is an optional filter on the resources. This uses the sa
     {LICENSE.txt},[=\ =]
     acme/Merge.class=src/acme/Merge.class
 
+#### Sample usages:
+
+##### Simple form:
+
+| Instruction | Explanation |
+| --- | --- |
+| `-includeresource: lib/fancylibrary-3.12.0.jar` | Copy lib/fancylibrary-3.12.0.jar file into the root of the target JAR |
+| `-includeresource.resources: -src/main/resources` | Copy folder src/main/resources contents (including subdfolders) into root of the target JAR <br>The arbitrarily named suffix .resources prevents this includeresource directive to be overwritten <br>The preceding minus sign instructs to supress an error for non-existing folder src/main/resources |
+| `-includeresource: ${workspace}/LICENSE, {readme.md}` | Copy the LICENSE file residing in the bnd workspace folder (above the project directory) as well as the pre-processed readme.md file (allowing for e.g. variable substitution) in the project folder into the target JAR |
+| `-includeresource: ${repo;com.acme:foo;latest}` | Copy the com.acme.foo bundle JAR in highest version number found in the bnd workspace repository into the root of the target JAR |
+
+##### Assignment form:
+
+| Instruction | Explanation |
+| --- | --- |
+| `-includeresource: images/=img/` or <br>`-includeresource: images=img` | Copy contents of img/ folder (including subdfolders) into an images folder of the target JAR |
+| `-includeresource: x=a/c/c.txt` | Copy a/c/c.txt into file x in the root folder of the target JAR |
+| `-includeresource: x/=a/c/c.txt` | Copy a/c/c.txt into file x/c.txt in the root folder of the target JAR |
+| `-includeresource: libraries/fancylibrary.jar=lib/fancylibrary-3.12.jar; lib:=true` | Copy lib/fancylibrary-3.1.2.jar from project into libraries folder of the target JAR, and place it on the Bundle-Classpath (BCP). It will make sure the BCP starts with '.' and then each include resource that is included will be added to the BCP |
+| `-includeresource: lib/; lib:=true` | Copy every JAR file underneath lib in a relative position under the root folder of the target JAR, and add each library to the bundle classpath |
+| `-includeresource: acme-foo-snap.jar=${repo;com.acme:foo;snapshot}` | Copy the highest snapshot version of com.acme.foo found in the bnd workspace repository as acme-foo-snap.jar into the root of the target JAR |
+| `-includeresource: foo.txt;literal='foo bar'` | Create a file named foo.txt containing the string literal "foo bar" in the root folder of the target JAR |
+| `-includeresource: bsn.txt;literal='${bsn}'` | Create a file named bsn.txt containing the bundle symbolic name (bsn) of this project in the root folder of the target JAR |
+| `-includeresource: libraries/=lib/;filter:=fancylibrary-*.jar;recursive:=false;lib:=true` or <br>`-includeresource: libraries/=lib/fancylibrary-*.jar;lib:=true` (as of bndtools 4.2) | Copy a wildcarded library from lib/ into libraries and add it to the bundle classpath |
+
+##### Inline form:
+
+| Instruction | Explanation |
+| --- | --- |
+| `-includeresource: @lib/fancylibrary-3.12.jar!/**` | Extract the contents of lib/fancylibrary-3.12.jar into the root folder of the target JAR, preserving relative paths |
+| `-includeresource: @${repo;com.acme.foo;latest}!/!META-INF/*` | Extract the contents of the highest found com.acme.foo version in the bnd workspace repository into the root folder of the target JAR, preserving relative paths, excluding the META-INF/ folder |
