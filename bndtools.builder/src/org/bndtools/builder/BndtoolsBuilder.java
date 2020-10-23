@@ -263,6 +263,8 @@ public class BndtoolsBuilder extends IncrementalProjectBuilder {
 
 					ComponentMarker.updateComponentMarkers(myProject, adapter);
 
+					new EclipseProjectsSynchronizer(model, monitor).synchronizeAll();
+
 					if (model.isCnf()) {
 						model.getWorkspace()
 							.refresh(); // this is for bnd plugins built in cnf
