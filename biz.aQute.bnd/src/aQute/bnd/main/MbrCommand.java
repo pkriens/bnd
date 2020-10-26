@@ -1,27 +1,37 @@
 package aQute.bnd.main;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import aQute.bnd.build.Container;
+import aQute.bnd.build.Project;
+import aQute.bnd.build.Run;
 import aQute.bnd.build.Workspace;
 import aQute.bnd.osgi.Instruction;
 import aQute.bnd.osgi.Instructions;
 import aQute.bnd.osgi.Processor;
 import aQute.bnd.repository.maven.provider.MavenBndRepository;
+import aQute.bnd.service.RepositoryPlugin;
 import aQute.bnd.version.MavenVersion;
 import aQute.bnd.version.Version;
 import aQute.lib.collections.LineCollection;
 import aQute.lib.collections.MultiMap;
+import aQute.lib.exceptions.Exceptions;
 import aQute.lib.getopt.Arguments;
 import aQute.lib.getopt.Description;
 import aQute.lib.getopt.Options;
@@ -183,6 +193,115 @@ public class MbrCommand extends Processor {
 		}
 	}
 
+	/**
+	 * Show the dependencies
+	 */
+
+	@Description("Check the path dependencies and show what is used")
+	@Arguments(arg = {})
+	interface DependencyOptions extends CheckOptions {
+		@Description("Show index per project")
+		boolean index();
+
+		@Description("Show orphans instead of used, this is the used archives - the total archives")
+		boolean orphans();
+	}
+
+	@Description("Check for any orphan dependencies, dependencies not used by any project")
+	public void _deps(DependencyOptions options) throws Exception {
+		Workspace workspace = bnd.getWorkspace();
+		if (workspace == null) {
+			error("Not in a workspace");
+			return;
+		}
+		MultiMap<Project, Container> containers = new MultiMap<>();
+
+		for (Project p : workspace.getAllProjects()) {
+			Set<Container> dependencies = getDependencies(p);
+			containers.addAll(p, dependencies);
+		}
+
+		if (options.index()) {
+			MultiMap<String, String> print = new MultiMap<>();
+			for (Entry<Project, List<Container>> e : containers.entrySet()) {
+				for (Container c : e.getValue()) {
+					print.add(e.getKey()
+						.toString(),
+						c.getBundleId()
+							.toString());
+				}
+			}
+			format("Project dependencies", print);
+		}
+
+		Set<Archive> used = new HashSet<>();
+
+		for (Container c : containers.allValues()) {
+			Archive archive = getArchive(c);
+			if (archive != null) {
+				used.add(archive);
+			}
+		}
+
+		if (options.orphans()) {
+			Set<Archive> archives = new HashSet<>(getArchives(repositories, Collections.emptyList()));
+			archives.removeAll(used);
+			used = archives;
+		}
+		String collect = used.stream()
+			.sorted()
+			.distinct()
+			.map(Object::toString)
+			.collect(Collectors.joining("\n"));
+		bnd.out.println(collect);
+	}
+
+	private Set<Container> getDependencies(Project p) {
+		try {
+			Set<Container> dependencies = new HashSet<>();
+			dependencies.addAll(Container.flatten(p.getBuildpath()));
+			dependencies.addAll(Container.flatten(p.getTestpath()));
+			dependencies.addAll(Container.flatten(p.getRunpath()));
+			dependencies.addAll(Container.flatten(p.getRunbundles()));
+			dependencies.addAll(Container.flatten(p.getRunFw()));
+
+			for (File f : p.getBase()
+				.listFiles((dir, name) -> name.endsWith(".bndrun"))) {
+				Run r = Run.createRun(p.getWorkspace(), f);
+				dependencies.addAll(Container.flatten(p.getRunpath()));
+				dependencies.addAll(Container.flatten(p.getRunbundles()));
+				dependencies.addAll(Container.flatten(p.getRunFw()));
+			}
+			return dependencies;
+		} catch (Exception e) {
+			throw Exceptions.duck(e);
+		}
+	}
+
+	private Archive getArchive(Container c) {
+		if (c.getError() != null) {
+			error("Dependency error %p: %s", c.getProject(), c);
+			return null;
+		}
+		if (c.getType() != Container.TYPE.REPO) {
+			return null;
+		}
+		Optional<RepositoryPlugin> repo = c.getRepo();
+		if (!repo.isPresent()) {
+			error("no repo %s", c);
+			return null;
+		}
+
+		if (!(repo.get() instanceof MavenBndRepository)) {
+			trace("not an mbr %s", repo.get());
+			return null;
+		}
+
+		MavenBndRepository mbr = (MavenBndRepository) repo.get();
+		Archive archive = mbr.toArchive(c);
+		return archive;
+	}
+
 	private boolean update(MavenBndRepository repo, Map<Archive, MavenVersion> translations) throws IOException {
 		boolean changes = false;
 		StringBuilder sb = new StringBuilder();
@@ -264,7 +383,7 @@ public class MbrCommand extends Processor {
 			if (map.isEmpty())
 				return;
 
-			Justif j = new Justif(140, 50, 60, 70, 80, 90, 100, 110);
+			Justif j = new Justif(200, 40, 60, 70, 80, 90, 100, 110);
 			j.formatter()
 				.format("%n## %60s%n", title);
 			j.table(map, "");

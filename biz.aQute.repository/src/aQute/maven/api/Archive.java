@@ -185,6 +185,9 @@ public class Archive implements Comparable<Archive> {
 		.compile("(?<group>([^/]+)(/[^/]+)+)/(?<artifact>[^/]+)/(?<version>[^/]+)/(?<name>[^/]+)");
 
 	public static Archive fromFilepath(String filePath) {
+		while (filePath.startsWith("/"))
+			filePath = filePath.substring(1);
+
 		Matcher matcher = FILEPATH_P.matcher(filePath);
 		if (!matcher.matches())
 			return null;

@@ -1,0 +1,20 @@
+-standalone true
+-plugin: \
+        aQute.bnd.deployer.repository.LocalIndexedRepo;\
+                local               ='${workspace}/../cache/local';\
+                name                =Local; \
+                overwrite           =true,\
+        aQute.bnd.repository.p2.provider.P2Repository;\
+                name                ='Eclipse';\
+                url                 ='http://download.eclipse.org/eclipse/updates/4.16', \
+        aQute.bnd.repository.p2.provider.P2Repository; \
+                name                ='M2E'; \
+                url                 =https://download.eclipse.org/technology/m2e/releases/1.11/, \
+        aQute.bnd.repository.p2.provider.P2Repository; \
+                name                ='Git'; \
+                url                 =https://download.eclipse.org/egit/updates/, \
+        aQute.bnd.repository.maven.provider.MavenBndRepository;\
+                name="Central";\
+                releaseUrl="https://repo.maven.apache.org/maven2";\
+                snapshotUrl="https://oss.sonatype.org/content/repositories/snapshots";\
+        source="com.google.guava:guava:21.0"

@@ -40,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import aQute.bnd.annotation.plugin.BndPlugin;
+import aQute.bnd.build.Container;
 import aQute.bnd.build.Project;
 import aQute.bnd.build.Workspace;
 import aQute.bnd.header.Attrs;
@@ -970,5 +971,9 @@ public class MavenBndRepository extends BaseRepository implements RepositoryPlug
 	@Override
 	public boolean isRemote() {
 		return remote;
+	}
+
+	public Archive toArchive(Container c) {
+		return storage.fromFile(c.getFile());
 	}
 }

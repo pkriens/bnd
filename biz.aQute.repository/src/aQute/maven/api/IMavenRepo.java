@@ -184,4 +184,13 @@ public interface IMavenRepo extends Closeable {
 
 	boolean exists(Archive binaryArchive) throws Exception;
 
+	/**
+	 * Calculate the archive based on the file. The file must be in the local
+	 * storage of this repository. If it cannot be calculated, null is returned.
+	 *
+	 * @param file the file to revert into an Archive
+	 * @return an archive or null
+	 */
+	Archive fromFile(File file);
+
 }

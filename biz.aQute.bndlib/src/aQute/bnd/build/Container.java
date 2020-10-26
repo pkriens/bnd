@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.jar.JarInputStream;
 import java.util.jar.Manifest;
 import java.util.stream.Collectors;
@@ -20,6 +21,7 @@ import aQute.bnd.osgi.Constants;
 import aQute.bnd.osgi.Jar;
 import aQute.bnd.osgi.Processor;
 import aQute.bnd.osgi.Resource;
+import aQute.bnd.service.RepositoryPlugin;
 import aQute.bnd.service.Strategy;
 import aQute.lib.io.IO;
 
@@ -45,6 +47,7 @@ public class Container {
 	private Manifest						manifest;
 	private volatile File[]					bundleClasspathExpansion;
 	public String							warning	= "";
+	private RepositoryPlugin				repo;
 
 	Container(Project project, String bsn, String version, TYPE type, File source, String error,
 		Map<String, String> attributes, DownloadBlocker db) {
@@ -425,4 +428,25 @@ public class Container {
 	public BundleId getBundleId() {
 		return new BundleId(getBundleSymbolicName(), getVersion());
 	}
+
+	/**
+	 * Associate a repository with this container
+	 *
+	 * @param repo the repository
+	 * @return this
+	 */
+	public Container setRepo(RepositoryPlugin repo) {
+		this.repo = repo;
+		return this;
+	}
+
+	/**
+	 * Get the optional associated repository
+	 *
+	 * @return the optional repo
+	 */
+	public Optional<RepositoryPlugin> getRepo() {
+		return Optional.ofNullable(repo);
+	}
+
 }

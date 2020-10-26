@@ -1879,6 +1879,15 @@ public class bnd extends Processor {
 	}
 
 	/**
+	 * Experimental commands
+	 */
+
+	@Description("Collection commands that might be one off or experiments. Might come and go over time.")
+	public void _experimental(projectOptions opts) throws Exception {
+		try (ExperimentalCommands e = new ExperimentalCommands(this, opts)) {}
+	}
+
+	/**
 	 * Run enroute commands
 	 */
 

@@ -388,4 +388,17 @@ public class MavenRepository implements IMavenRepo, Closeable {
 			poms.remove(revision);
 		}
 	}
+
+	@Override
+	public Archive fromFile(File file) {
+		URI focus = this.base.toURI()
+			.relativize(file.toURI());
+		if (focus.isAbsolute()) {
+			return null;
+		}
+
+		String path = focus.getPath();
+
+		return Archive.fromFilepath(path);
+	}
 }

@@ -1361,7 +1361,7 @@ public class Project extends Processor {
 					DownloadBlocker blocker = new DownloadBlocker(this);
 					File result = repo.get(bsn, provider, attrs, blocker);
 					if (result != null)
-						return toContainer(bsn, version, attrs, result, blocker);
+						return toContainer(bsn, version, attrs, result, blocker).setRepo(repo);
 				} else {
 					msgs.FoundVersions_ForStrategy_ButNoProvider(versions, useStrategy);
 				}
@@ -1535,7 +1535,7 @@ public class Project extends Processor {
 			}
 
 			if (result != null)
-				return toContainer(bsn, "hash", attrs, result, blocker);
+				return toContainer(bsn, "hash", attrs, result, blocker).setRepo(plugin);
 		}
 
 		// If we reach this far, none of the repos found the resource.
