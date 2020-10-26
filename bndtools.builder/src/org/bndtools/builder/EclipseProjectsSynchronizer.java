@@ -2,6 +2,7 @@ package org.bndtools.builder;
 
 import java.io.File;
 import java.net.URI;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -24,6 +25,7 @@ import aQute.libg.tuple.Pair;
 class EclipseProjectsSynchronizer {
 
 	private static final ILogger	logger	= Logger.getLogger(BndtoolsBuilder.class);
+	private static final Set<File>	seenProjects	= new HashSet<>();
 	private Project model;
 	private IProgressMonitor		monitor;
 
@@ -41,6 +43,7 @@ class EclipseProjectsSynchronizer {
 
 		Set<File> bndProjectDirs = bndNameProjectDirs.stream()
 			.map(Pair::getSecond)
+			.peek(seenProjects::add)
 			.collect(Collectors.toSet());
 
 		Set<IProject> eclipseProjects = Stream.of(ResourcesPlugin.getWorkspace()
@@ -51,12 +54,17 @@ class EclipseProjectsSynchronizer {
 		Set<File> eclipseProjectDirs = eclipseProjects.stream()
 			.map(IResource::getLocationURI)
 			.map(File::new)
+			.filter(projectDir -> seenProjects.contains(projectDir))
 			.collect(Collectors.toSet());
 
 		Set<IProject> toRemove = eclipseProjects.stream()
 			.filter(eclipseProject -> {
 				URI projectURI = eclipseProject.getLocationURI();
-				return projectURI != null && !bndProjectDirs.contains(new File(projectURI));
+				if (projectURI == null)
+					return false;
+
+				File projectDir = new File(projectURI);
+				return !bndProjectDirs.contains(projectDir) && seenProjects.contains(projectDir);
 			})
 			.collect(Collectors.toSet());
 
@@ -65,7 +73,6 @@ class EclipseProjectsSynchronizer {
 			.collect(Collectors.toSet());
 
 		toRemove.forEach(this::remove);
-
 		toAdd.forEach(this::add);
 	}
 
