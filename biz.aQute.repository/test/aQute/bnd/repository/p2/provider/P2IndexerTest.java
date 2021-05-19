@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.File;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -37,23 +36,28 @@ public class P2IndexerTest extends TestCase {
 		tmp.mkdirs();
 	}
 
-	public void testURI() throws Exception {
-		HttpClient client = new HttpClient();
-		client.setCache(IO.getFile(tmp, "cache"));
-
-		try (P2Indexer p2 = new P2Indexer(new Slf4jReporter(P2IndexerTest.class), tmp, client,
-			new URI("https://dl.bintray.com/bndtools/bndtools/3.5.0/"), "test")) {
-			List<String> bsns = p2.list(null);
-			assertThat(bsns).contains("javax.xml", "org.bndtools.templating.gitrepo",
-				"org.bndtools.headless.build.manager", "javax.xml.stream", "org.bndtools.templating", "org.slf4j.api",
-				"bndtools.api", "bndtools.jareditor", "org.bndtools.versioncontrol.ignores.plugin.git", "bndtools.m2e",
-				"org.bndtools.embeddedrepo", "biz.aQute.resolve", "org.bndtools.versioncontrol.ignores.manager",
-				"bndtools.builder", "bndtools.core", "biz.aQute.repository",
-				"org.bndtools.headless.build.plugin.gradle", "bndtools.release",
-				"org.bndtools.headless.build.plugin.ant", "org.osgi.impl.bundle.repoindex.lib", "biz.aQute.bndlib");
-			System.out.println(bsns);
-		}
-	}
+	// public void testURI() throws Exception {
+	// HttpClient client = new HttpClient();
+	// client.setCache(IO.getFile(tmp, "cache"));
+	//
+	// try (P2Indexer p2 = new P2Indexer(new Slf4jReporter(P2IndexerTest.class),
+	// tmp, client,
+	// new URI("https://dl.bintray.com/bndtools/bndtools/3.5.0/"), "test")) {
+	// List<String> bsns = p2.list(null);
+	// assertThat(bsns).contains("javax.xml", "org.bndtools.templating.gitrepo",
+	// "org.bndtools.headless.build.manager", "javax.xml.stream",
+	// "org.bndtools.templating", "org.slf4j.api",
+	// "bndtools.api", "bndtools.jareditor",
+	// "org.bndtools.versioncontrol.ignores.plugin.git", "bndtools.m2e",
+	// "org.bndtools.embeddedrepo", "biz.aQute.resolve",
+	// "org.bndtools.versioncontrol.ignores.manager",
+	// "bndtools.builder", "bndtools.core", "biz.aQute.repository",
+	// "org.bndtools.headless.build.plugin.gradle", "bndtools.release",
+	// "org.bndtools.headless.build.plugin.ant",
+	// "org.osgi.impl.bundle.repoindex.lib", "biz.aQute.bndlib");
+	// System.out.println(bsns);
+	// }
+	// }
 
 	public void testFile() throws Throwable {
 		HttpClient client = new HttpClient();
@@ -146,20 +150,21 @@ public class P2IndexerTest extends TestCase {
 
 	}
 
-	public void testRefresh() throws Exception {
-		HttpClient client = new HttpClient();
-		client.setCache(IO.getFile(tmp, "cache"));
-
-		try (P2Indexer p2 = new P2Indexer(new Slf4jReporter(P2IndexerTest.class), tmp, client,
-			new URI("https://dl.bintray.com/bndtools/bndtools/3.5.0/"), "test")) {
-
-			assertThat(p2.versions("bndtools.core")).hasSize(1);
-
-			p2.refresh();
-
-			assertThat(p2.versions("bndtools.core")).hasSize(1);
-		}
-	}
+	// public void testRefresh() throws Exception {
+	// HttpClient client = new HttpClient();
+	// client.setCache(IO.getFile(tmp, "cache"));
+	//
+	// try (P2Indexer p2 = new P2Indexer(new Slf4jReporter(P2IndexerTest.class),
+	// tmp, client,
+	// new URI("https://dl.bintray.com/bndtools/bndtools/3.5.0/"), "test")) {
+	//
+	// assertThat(p2.versions("bndtools.core")).hasSize(1);
+	//
+	// p2.refresh();
+	//
+	// assertThat(p2.versions("bndtools.core")).hasSize(1);
+	// }
+	// }
 
 	public void testTargetPlatform() throws Throwable {
 		HttpClient client = new HttpClient();

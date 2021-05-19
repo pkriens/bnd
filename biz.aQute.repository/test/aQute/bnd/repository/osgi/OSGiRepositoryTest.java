@@ -1,13 +1,9 @@
 package aQute.bnd.repository.osgi;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import java.io.File;
 import java.net.URISyntaxException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.SortedSet;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -352,70 +348,71 @@ public class OSGiRepositoryTest extends TestCase {
 		}
 	}
 
-	public void testBndRepo() throws Exception {
-		try (OSGiRepository r = new OSGiRepository();) {
-			Map<String, String> map = new HashMap<>();
-			map.put("locations", "https://dl.bintray.com/bnd/dist/4.1.0/index.xml.gz");
-			map.put("cache", cache.getPath());
-			map.put("max.stale", "10000");
-			r.setProperties(map);
-			Processor p = new Processor();
-			HttpClient httpClient = new HttpClient();
-			httpClient.setCache(cache);
-			httpClient.setRegistry(p);
-			p.addBasicPlugin(httpClient);
-			p.setBase(ws);
-			p.addBasicPlugin(Workspace.createStandaloneWorkspace(p, ws.toURI()));
-			r.setRegistry(p);
-
-			final AtomicInteger tasks = new AtomicInteger();
-
-			p.addBasicPlugin(new ProgressPlugin() {
-
-				@Override
-				public Task startTask(final String name, int size) {
-					System.out.println("Starting " + name);
-					tasks.incrementAndGet();
-					return new Task() {
-
-						@Override
-						public void worked(int units) {
-							System.out.println("Worked " + name + " " + units);
-						}
-
-						@Override
-						public void done(String message, Throwable e) {
-							System.out.println("Done " + name + " " + message);
-						}
-
-						@Override
-						public boolean isCanceled() {
-							return false;
-						}
-					};
-				}
-			});
-
-			assertThat(tasks).hasValue(0);
-			List<String> list = r.list(null);
-			assertThat(list).isNotEmpty();
-
-			SortedSet<Version> versions = r.versions("aQute.libg");
-			assertThat(versions).isNotEmpty();
-			File f1 = r.get("aQute.libg", versions.first(), null);
-			assertThat(f1).isNotNull();
-			assertThat(tasks).hasValueGreaterThanOrEqualTo(2); // index + bundle
-																// + redirects
-			int t = tasks.get();
-
-			File f2 = r.get("aQute.libg", versions.first(), null);
-			assertThat(tasks).hasValue(t); // should use cache
-
-			r.getIndex(true);
-			File f3 = r.get("aQute.libg", versions.first(), null);
-			assertThat(tasks).hasValue(t * 2); // should fetch again
-
-		}
-	}
+	// public void testBndRepo() throws Exception {
+	// try (OSGiRepository r = new OSGiRepository();) {
+	// Map<String, String> map = new HashMap<>();
+	// map.put("locations",
+	// "https://dl.bintray.com/bnd/dist/4.1.0/index.xml.gz");
+	// map.put("cache", cache.getPath());
+	// map.put("max.stale", "10000");
+	// r.setProperties(map);
+	// Processor p = new Processor();
+	// HttpClient httpClient = new HttpClient();
+	// httpClient.setCache(cache);
+	// httpClient.setRegistry(p);
+	// p.addBasicPlugin(httpClient);
+	// p.setBase(ws);
+	// p.addBasicPlugin(Workspace.createStandaloneWorkspace(p, ws.toURI()));
+	// r.setRegistry(p);
+	//
+	// final AtomicInteger tasks = new AtomicInteger();
+	//
+	// p.addBasicPlugin(new ProgressPlugin() {
+	//
+	// @Override
+	// public Task startTask(final String name, int size) {
+	// System.out.println("Starting " + name);
+	// tasks.incrementAndGet();
+	// return new Task() {
+	//
+	// @Override
+	// public void worked(int units) {
+	// System.out.println("Worked " + name + " " + units);
+	// }
+	//
+	// @Override
+	// public void done(String message, Throwable e) {
+	// System.out.println("Done " + name + " " + message);
+	// }
+	//
+	// @Override
+	// public boolean isCanceled() {
+	// return false;
+	// }
+	// };
+	// }
+	// });
+	//
+	// assertThat(tasks).hasValue(0);
+	// List<String> list = r.list(null);
+	// assertThat(list).isNotEmpty();
+	//
+	// SortedSet<Version> versions = r.versions("aQute.libg");
+	// assertThat(versions).isNotEmpty();
+	// File f1 = r.get("aQute.libg", versions.first(), null);
+	// assertThat(f1).isNotNull();
+	// assertThat(tasks).hasValueGreaterThanOrEqualTo(2); // index + bundle
+	// // + redirects
+	// int t = tasks.get();
+	//
+	// File f2 = r.get("aQute.libg", versions.first(), null);
+	// assertThat(tasks).hasValue(t); // should use cache
+	//
+	// r.getIndex(true);
+	// File f3 = r.get("aQute.libg", versions.first(), null);
+	// assertThat(tasks).hasValue(t * 2); // should fetch again
+	//
+	// }
+	// }
 
 }

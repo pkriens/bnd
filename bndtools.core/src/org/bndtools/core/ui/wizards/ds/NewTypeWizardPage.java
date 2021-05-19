@@ -3,6 +3,7 @@ package org.bndtools.core.ui.wizards.ds;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -53,23 +54,22 @@ import org.eclipse.jdt.core.formatter.CodeFormatter;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchEngine;
+import org.eclipse.jdt.internal.core.manipulation.StubUtility;
 import org.eclipse.jdt.internal.corext.CorextMessages;
-import org.eclipse.jdt.internal.corext.ValidateEditException;
 import org.eclipse.jdt.internal.corext.codemanipulation.AddUnimplementedConstructorsOperation;
 import org.eclipse.jdt.internal.corext.codemanipulation.AddUnimplementedMethodsOperation;
 import org.eclipse.jdt.internal.corext.codemanipulation.CodeGenerationSettings;
-import org.eclipse.jdt.internal.corext.codemanipulation.StubUtility;
 import org.eclipse.jdt.internal.corext.dom.ASTNodes;
 import org.eclipse.jdt.internal.corext.dom.TokenScanner;
 import org.eclipse.jdt.internal.corext.refactoring.StubTypeContext;
 import org.eclipse.jdt.internal.corext.refactoring.TypeContextChecker;
-import org.eclipse.jdt.internal.corext.template.java.JavaContext;
 import org.eclipse.jdt.internal.corext.util.CodeFormatterUtil;
 import org.eclipse.jdt.internal.corext.util.JavaConventionsUtil;
 import org.eclipse.jdt.internal.corext.util.JavaModelUtil;
 import org.eclipse.jdt.internal.corext.util.Messages;
 import org.eclipse.jdt.internal.corext.util.Resources;
 import org.eclipse.jdt.internal.corext.util.Strings;
+import org.eclipse.jdt.internal.corext.util.ValidateEditException;
 import org.eclipse.jdt.internal.ui.JavaPlugin;
 import org.eclipse.jdt.internal.ui.JavaPluginImages;
 import org.eclipse.jdt.internal.ui.dialogs.FilteredTypesSelectionDialog;
@@ -104,10 +104,7 @@ import org.eclipse.jdt.ui.wizards.NewContainerWizardPage;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.jface.preference.PreferenceDialog;
-import org.eclipse.jface.text.BadLocationException;
 import org.eclipse.jface.text.ITextSelection;
-import org.eclipse.jface.text.templates.Template;
-import org.eclipse.jface.text.templates.TemplateException;
 import org.eclipse.jface.viewers.CellEditor;
 import org.eclipse.jface.viewers.ICellModifier;
 import org.eclipse.jface.viewers.ISelection;
@@ -2434,46 +2431,47 @@ public abstract class NewTypeWizardPage extends NewContainerWizardPage {
         return null;
     }
 
-    /**
-     * @param name the name of the template
-     * @param parentCU the current compilation unit
-     * @return returns the template or <code>null</code>
-     * @deprecated Use getTemplate(String,ICompilationUnit,int)
-     */
-    @Deprecated
-    protected String getTemplate(String name, ICompilationUnit parentCU) {
-        return getTemplate(name, parentCU, 0);
-    }
+    // /**
+    // * @param name the name of the template
+    // * @param parentCU the current compilation unit
+    // * @return returns the template or <code>null</code>
+    // * @deprecated Use getTemplate(String,ICompilationUnit,int)
+    // */
+    // @Deprecated
+    // protected String getTemplate(String name, ICompilationUnit parentCU) {
+    // return getTemplate(name, parentCU, 0);
+    // }
 
-    /**
-     * Returns the string resulting from evaluation the given template in the context of the given compilation unit.
-     * This accesses the normal template page, not the code templates. To use code templates use
-     * <code>constructCUContent</code> to construct a compilation unit stub or getTypeComment for the comment of the
-     * type.
-     *
-     * @param name the template to be evaluated
-     * @param parentCU the templates evaluation context
-     * @param pos a source offset into the parent compilation unit. The template is evaluated at the given source offset
-     * @return return the template with the given name or <code>null</code> if the template could not be found.
-     */
-    protected String getTemplate(String name, ICompilationUnit parentCU, int pos) {
-        try {
-            Template template = JavaPlugin.getDefault()
-                .getTemplateStore()
-                .findTemplate(name);
-            if (template != null) {
-                return JavaContext.evaluateTemplate(template, parentCU, pos);
-            }
-        } catch (CoreException e) {
-            JavaPlugin.log(e);
-        } catch (BadLocationException e) {
-            JavaPlugin.log(e);
-        } catch (TemplateException e) {
-            JavaPlugin.log(e);
-        }
-        return null;
-    }
-
+    // /**
+    // * Returns the string resulting from evaluation the given template in the context of the given compilation unit.
+    // * This accesses the normal template page, not the code templates. To use code templates use
+    // * <code>constructCUContent</code> to construct a compilation unit stub or getTypeComment for the comment of the
+    // * type.
+    // *
+    // * @param name the template to be evaluated
+    // * @param parentCU the templates evaluation context
+    // * @param pos a source offset into the parent compilation unit. The template is evaluated at the given source
+    // offset
+    // * @return return the template with the given name or <code>null</code> if the template could not be found.
+    // */
+    // protected String getTemplate(String name, ICompilationUnit parentCU, int pos) {
+    // try {
+    // Template template = JavaPlugin.getDefault()
+    // .getTemplateStore()
+    // .findTemplate(name);
+    // if (template != null) {
+    // return JavaContext.evaluateTemplate(template, parentCU, pos);
+    // }
+    // } catch (CoreException e) {
+    // JavaPlugin.log(e);
+    // } catch (BadLocationException e) {
+    // JavaPlugin.log(e);
+    // } catch (TemplateException e) {
+    // JavaPlugin.log(e);
+    // }
+    // return null;
+    // }
+    //
     /**
      * Creates the bodies of all unimplemented methods and constructors and adds them to the type. Method is typically
      * called by implementers of <code>NewTypeWizardPage</code> to add needed method and constructors.
@@ -2509,7 +2507,7 @@ public abstract class NewTypeWizardPage extends NewContainerWizardPage {
                 createImports(imports, operation.getCreatedImports());
             }
             if (doConstructors) {
-                AddUnimplementedConstructorsOperation operation = new AddUnimplementedConstructorsOperation(unit, binding, null, -1, false, true, false);
+                AddUnimplementedConstructorsOperation operation = new AddUnimplementedConstructorsOperation(unit, binding, null, -1, false, true, false, Collections.emptyMap());
                 operation.setOmitSuper(true);
                 operation.setCreateComments(isAddComments());
                 operation.run(monitor);
