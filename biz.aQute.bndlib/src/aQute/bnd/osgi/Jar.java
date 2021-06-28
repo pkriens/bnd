@@ -150,7 +150,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Make the JAR file name the project name if we get a src or bin directory.
-	 * 
+	 *
 	 * @param f
 	 */
 	private static String getName(File f) {
@@ -285,7 +285,11 @@ public class Jar implements Closeable {
 		} else if (path.equals(Constants.MODULE_INFO_CLASS)) {
 			moduleAttribute = null;
 		}
-		Map<String, Resource> s = directories.computeIfAbsent(getParent(path), dir -> {
+		String dir = getParent(path);
+		Map<String, Resource> s = directories.get(dir);
+		if (s == null) {
+			s = new TreeMap<>();
+			directories.put(dir, s);
 			// make ancestor directories
 			for (int n; (n = dir.lastIndexOf('/')) > 0;) {
 				dir = dir.substring(0, n);
@@ -293,8 +297,7 @@ public class Jar implements Closeable {
 					break;
 				directories.put(dir, null);
 			}
-			return new TreeMap<>();
-		});
+		}
 		boolean duplicate = s.containsKey(path);
 		if (!duplicate || overwrite) {
 			resources.put(path, resource);
@@ -635,7 +638,7 @@ public class Jar implements Closeable {
 	/**
 	 * Cleanup the manifest for writing. Cleaning up consists of adding a space
 	 * after any \n to prevent the manifest to see this newline as a delimiter.
-	 * 
+	 *
 	 * @param out Output
 	 * @throws IOException
 	 */
@@ -659,14 +662,14 @@ public class Jar implements Closeable {
 	 * bug in the manifest code. It tries to handle UTF-8 but the way it does it
 	 * it makes the bytes platform dependent. So the following code outputs the
 	 * manifest. A Manifest consists of
-	 * 
+	 *
 	 * <pre>
 	 *  'Manifest-Version: 1.0\r\n'
 	 * main-attributes * \r\n name-section main-attributes ::= attributes
 	 * attributes ::= key ': ' value '\r\n' name-section ::= 'Name: ' name
 	 * '\r\n' attributes
 	 * </pre>
-	 * 
+	 *
 	 * Lines in the manifest should not exceed 72 bytes (! this is where the
 	 * manifest screwed up as well when 16 bit unicodes were used).
 	 * <p>
@@ -681,7 +684,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Main function to output a manifest properly in UTF-8.
-	 * 
+	 *
 	 * @param manifest The manifest to output
 	 * @param out The output stream
 	 * @throws IOException when something fails
@@ -716,7 +719,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Convert a string to bytes with UTF-8 and then output in max 72 bytes
-	 * 
+	 *
 	 * @param out the output string
 	 * @param width the current width
 	 * @param s the string to output
@@ -732,7 +735,7 @@ public class Jar implements Closeable {
 	 * Write the bytes but ensure that the line length does not exceed 72
 	 * characters. If it is more than 70 characters, we just put a cr/lf +
 	 * space.
-	 * 
+	 *
 	 * @param out The output stream
 	 * @param width The nr of characters output in a line before this method
 	 *            started
@@ -756,7 +759,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Output an Attributes map. We will sort this map before outputing.
-	 * 
+	 *
 	 * @param value the attrbutes
 	 * @param out the output stream
 	 * @throws IOException when something fails
@@ -889,7 +892,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Add all the resources in the given jar that match the given filter.
-	 * 
+	 *
 	 * @param sub the jar
 	 * @param filter a pattern that should match the resoures in sub to be added
 	 */
@@ -899,7 +902,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Add all the resources in the given jar that match the given filter.
-	 * 
+	 *
 	 * @param sub the jar
 	 * @param filter a pattern that should match the resoures in sub to be added
 	 */
@@ -954,7 +957,8 @@ public class Jar implements Closeable {
 		check();
 		return directories.entrySet()
 			.stream()
-			.filter(e -> e.getValue() != null)
+			.filter(e -> e.getValue() != null && !e.getValue()
+				.isEmpty())
 			.map(e -> e.getKey()
 				.replace('/', '.'))
 			.collect(Collectors.toList());
@@ -1065,7 +1069,7 @@ public class Jar implements Closeable {
 	/**
 	 * Get the jar bsn from the {@link Constants#BUNDLE_SYMBOLICNAME} manifest
 	 * header.
-	 * 
+	 *
 	 * @return null when the jar has no manifest, when the manifest has no
 	 *         {@link Constants#BUNDLE_SYMBOLICNAME} header, or when the value
 	 *         of the header is not a valid bsn according to {@link #BSN}.
@@ -1085,7 +1089,7 @@ public class Jar implements Closeable {
 	/**
 	 * Get the jar version from the {@link Constants#BUNDLE_VERSION} manifest
 	 * header.
-	 * 
+	 *
 	 * @return null when the jar has no manifest or when the manifest has no
 	 *         {@link Constants#BUNDLE_VERSION} header
 	 * @throws Exception when the jar is closed or when the manifest could not
@@ -1100,7 +1104,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Expand the JAR file to a directory.
-	 * 
+	 *
 	 * @param dir the dst directory, is not required to exist
 	 * @throws Exception if anything does not work as expected.
 	 */
@@ -1110,7 +1114,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Make sure we have a manifest
-	 * 
+	 *
 	 * @throws Exception
 	 */
 	public void ensureManifest() throws Exception {
@@ -1155,7 +1159,7 @@ public class Jar implements Closeable {
 
 	/**
 	 * Return a data uri from the JAR. The data must be less than 32k
-	 * 
+	 *
 	 * @param path the path in the jar
 	 * @param mime the mime type
 	 * @return a URI or null if conversion could not take place
