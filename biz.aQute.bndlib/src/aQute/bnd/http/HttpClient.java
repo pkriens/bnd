@@ -97,7 +97,7 @@ public class HttpClient implements Closeable, URLConnector {
 	private final PromiseFactory				promiseFactory;
 	private ConnectionSettings					connectionSettings;
 	final Map<String, Semaphore>				blocker						= new ConcurrentHashMap<>();
-	int											maxConcurrentConnections	= 40;
+	int											maxConcurrentConnections	= 0;
 
 	public HttpClient() {
 		promiseFactory = Processor.getPromiseFactory();
@@ -575,15 +575,17 @@ public class HttpClient implements Closeable, URLConnector {
 	 * Blocks on maxConcurrentConnections per host:port combination.
 	 */
 	private AutoCloseable getConnectionBlocker(HttpURLConnection hcon) throws InterruptedException {
-		if (hcon != null) {
-			URL url = hcon.getURL();
-			if (url != null) {
-				String host = url.getHost();
-				if (host != null) {
-					String key = host + ":" + url.getPort();
-					Semaphore s = blocker.computeIfAbsent(key, k -> new Semaphore(maxConcurrentConnections));
-					s.acquire();
-					return s::release;
+		if (maxConcurrentConnections != 0) {
+			if (hcon != null) {
+				URL url = hcon.getURL();
+				if (url != null) {
+					String host = url.getHost();
+					if (host != null) {
+						String key = host + ":" + url.getPort();
+						Semaphore s = blocker.computeIfAbsent(key, k -> new Semaphore(maxConcurrentConnections));
+						s.acquire();
+						return s::release;
+					}
 				}
 			}
 		}

@@ -608,6 +608,15 @@ public class HttpClientTest extends TestCase {
 		}
 	}
 
+	public void testNoLimitConnection() throws Exception {
+		try (Processor p = new Processor()) {
+			try (HttpClient client = new HttpClient()) {
+				client.maxConcurrentConnections = 0;
+				xtestParallel(client, 100);
+			}
+		}
+	}
+
 	public void testLimitConnectionSet() throws Exception {
 		try (Processor p = new Processor()) {
 			p.setProperty("-x-max-concurrent-connections", "55");
