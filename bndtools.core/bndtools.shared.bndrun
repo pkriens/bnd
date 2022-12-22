@@ -97,9 +97,10 @@
 	bnd.identity;id='org.eclipse.ui.console',\
 	bnd.identity;id='org.eclipse.ui.ide',\
 	bnd.identity;id='org.eclipse.ui.ide.application',\
-	bnd.identity;id='junit-platform-commons';version='${range;[===,==+);${junit.platform.eclipse.version}}',\
-	bnd.identity;id='junit-platform-engine';version='${range;[===,==+);${junit.platform.eclipse.version}}',\
-	bnd.identity;id='junit-platform-launcher';version='${range;[===,==+);${junit.platform.eclipse.version}}'
+	bnd.identity;id=junit-platform-commons;version='${range;[===,==+);${junit.platform.eclipse.version}}',\
+	bnd.identity;id=junit-platform-engine;version='${range;[===,==+);${junit.platform.eclipse.version}}',\
+	bnd.identity;id=junit-platform-launcher;version='${range;[===,==+);${junit.platform.eclipse.version}}',\
+	osgi.identity;filter:='(osgi.identity=biz.aQute.openai.eclipse.provider)'
 
 -runblacklist: \
 	bnd.identity;id='biz.aQute.bnd.annotation',\
