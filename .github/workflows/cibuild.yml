@@ -35,21 +35,20 @@ permissions:
 jobs:
   build:
     strategy:
-      fail-fast: ${{ (github.repository != 'bndtools/bnd') || ((github.ref != 'refs/heads/master') && (github.ref != 'refs/heads/next')) || (github.event_name == 'pull_request') }}
+      fail-fast: ${{ (github.repository != 'bndtools/bnd') || ((github.ref != 'refs/heads/classic') && (github.ref != 'refs/heads/master') && (github.ref != 'refs/heads/next')) || (github.event_name == 'pull_request') }}
       matrix:
         os:
         - 'ubuntu-latest'
         java:
         - '8'
-        - '11'
-        - '18'
+        - '17'
         runner:
         - 'xvfb-run --auto-servernum {0}'
         include:
         - os: 'ubuntu-latest'
           java: '17'
           runner: 'xvfb-run --auto-servernum {0}'
-          canonical: ${{ (github.repository == 'bndtools/bnd') && ((github.ref == 'refs/heads/master') || (github.ref == 'refs/heads/next')) && (github.event_name != 'pull_request') }}
+          canonical: ${{ (github.repository == 'bndtools/bnd') && ((github.ref == 'refs/heads/classic') || (github.ref == 'refs/heads/master') || (github.ref == 'refs/heads/next')) && (github.event_name != 'pull_request') }}
           fetch-depth: '0'
         - os: 'windows-latest'
           java: '17'
