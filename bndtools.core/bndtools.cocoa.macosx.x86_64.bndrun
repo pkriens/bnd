@@ -31,6 +31,7 @@
 	biz.aQute.bnd.maven;version=snapshot,\
 	biz.aQute.bnd.util;version=snapshot,\
 	biz.aQute.bndlib;version=snapshot,\
+	biz.aQute.openai.eclipse.provider;version=snapshot,\
 	biz.aQute.repository;version=snapshot,\
 	biz.aQute.resolve;version=snapshot,\
 	bndtools.api;version=snapshot,\
@@ -67,6 +68,7 @@
 	org.apache.felix.gogo.runtime;version='[1.1.6,1.1.7)',\
 	org.apache.felix.gogo.shell;version='[1.1.4,1.1.5)',\
 	org.apache.felix.scr;version='[2.2.2,2.2.3)',\
+	org.apache.geronimo.specs.geronimo-atinject_1.0_spec;version='[1.1.0,1.1.1)',\
 	org.apache.httpcomponents.httpclient;version='[4.5.13,4.5.14)',\
 	org.apache.httpcomponents.httpcore;version='[4.4.15,4.4.16)',\
 	org.apache.lucene.analyzers-common;version='[8.4.1,8.4.2)',\
