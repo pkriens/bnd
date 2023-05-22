@@ -1,0 +1,7 @@
+<plugin>
+
+    <extension point="org.eclipse.ui.views">
+        <view id="my.view.id" name="Your Secretary" class="biz.aQute.openai.eclipse.provider.SecretaryView" icon="icons/sample.gif" />
+    </extension>
+
+</plugin>
