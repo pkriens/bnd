@@ -1,0 +1,27 @@
+name: Prepare RC1
+
+on:
+  workflow_dispatch:
+    inputs:
+      V1:
+        description: 'Current SNAPSHOT version'
+        required: true
+        default: 'V1'
+      V2:
+        description: 'Next SNAPSHOT version'
+        required: true
+        default: 'V2'
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set up Git
+        run: |
+          git config --local bndtools@aQute.biz "github-actions[bot]"
+          git config --local bndtools@aQute.biz "github-actions[bot]@users.noreply.github.com"
+          export BRANCH_NAME="build/prepare-rc1-${{ github.event.inputs.V1 }}-${{ github.event.inputs.V2 }}"
+          git checkout -b "$BRANCH_NAME"
+
